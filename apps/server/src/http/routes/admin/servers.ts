@@ -132,7 +132,14 @@ export const adminServerRoutes = new Hono<AppEnv>()
     const { decrypt } = await import('../../../lib/crypto')
     const { config } = await import('../../../config')
     const token = decrypt(node.token)
+    // HTTPS nodes terminate TLS in the daemon (Let's Encrypt paths) unless a
+    // proxy in front of the daemon does it, then the daemon serves plain HTTP.
+    const live = `/etc/letsencrypt/live/${node.fqdn}`
+    const ssl =
+      node.scheme === 'https' && !node.behindProxy
+        ? ` --ssl-cert ${live}/fullchain.pem --ssl-key ${live}/privkey.pem`
+        : ''
     return c.json({
-      command: `ammonode-daemon configure --panel ${config.url} --uuid ${node.uuid} --token-id ${node.tokenId} --token ${token} --port ${node.daemonListen} --sftp-port ${node.daemonSftp}`,
+      command: `ammonode-daemon configure --panel ${config.url} --uuid ${node.uuid} --token-id ${node.tokenId} --token ${token} --port ${node.daemonListen} --sftp-port ${node.daemonSftp}${ssl}`,
     })
   })

@@ -24,7 +24,11 @@ const nodeBody = z.object({
   name: z.string().min(1).max(191),
   description: z.string().nullish(),
   locationId: z.number().int(),
-  fqdn: z.string().min(1).max(191),
+  fqdn: z
+    .string()
+    .min(1)
+    .max(191)
+    .regex(/^[a-zA-Z0-9.-]+$/, 'Use a domain name or an IPv4 address'),
   scheme: z.enum(['http', 'https']).default('https'),
   behindProxy: z.boolean().default(false),
   public: z.boolean().default(true),

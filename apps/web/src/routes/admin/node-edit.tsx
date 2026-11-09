@@ -276,7 +276,7 @@ export function AdminNodePage() {
                 onChange={(v) => setForm({ ...form, behindProxy: v })}
                 label="Behind proxy"
               />{' '}
-              Behind a proxy
+              Behind a proxy (TLS is terminated before the daemon)
             </span>
           </div>
           <div className="flex items-center justify-between gap-3 md:col-span-3">
