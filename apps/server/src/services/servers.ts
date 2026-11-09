@@ -185,9 +185,117 @@ export async function createServer(input: CreateServerInput) {
       start_on_completion: input.startOnCompletion ?? false,
     })
   } catch (e) {
-    // Keep the record; the admin can retry the install once the node is reachable.
-    await db.update(schema.servers).set({ status: 'install_failed' }).where(eq(schema.servers.id, server.id))
+    // Undo everything so a retry starts clean and no orphan server is left behind.
+    await db.transaction(async (tx) => {
+      await tx
+        .update(schema.allocations)
+        .set({ serverId: null })
+        .where(eq(schema.allocations.serverId, server.id))
+      await tx.delete(schema.servers).where(eq(schema.servers.id, server.id))
+    })
     throw e
   }
   return server
+}
+
+async function loadServer(id: number) {
+  const server = await db.query.servers.findFirst({ where: eq(schema.servers.id, id) })
+  if (!server) throw new HttpError(404, 'Server not found', 'not_found')
+  const node = (await db.query.nodes.findFirst({ where: eq(schema.nodes.id, server.nodeId) }))!
+  return { server, node }
+}
+
+/** Suspends or unsuspends a server and tells the daemon (which stops it). */
+export async function setServerSuspended(id: number, suspended: boolean) {
+  const { server, node } = await loadServer(id)
+  await db
+    .update(schema.servers)
+    .set({ status: suspended ? 'suspended' : null })
+    .where(eq(schema.servers.id, server.id))
+  await daemonRequest(node, 'POST', `/api/servers/${server.uuid}/sync`).catch((e) =>
+    console.error('daemon sync failed:', e.message),
+  )
+}
+
+/** Deletes a server from the daemon and the database, freeing its allocations. */
+export async function deleteServer(id: number, force = false) {
+  const { server, node } = await loadServer(id)
+  await daemonRequest(node, 'DELETE', `/api/servers/${server.uuid}`).catch((e) => {
+    if (!force) throw e
+  })
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.allocations)
+      .set({ serverId: null, notes: null })
+      .where(eq(schema.allocations.serverId, server.id))
+    await tx.delete(schema.servers).where(eq(schema.servers.id, server.id))
+  })
+  return server
+}
+
+/** Changes resource limits; applied by the daemon on next start. */
+export async function updateServerBuild(
+  id: number,
+  build: Partial<
+    Pick<
+      typeof schema.servers.$inferInsert,
+      | 'memory'
+      | 'swap'
+      | 'disk'
+      | 'io'
+      | 'cpu'
+      | 'threads'
+      | 'databaseLimit'
+      | 'backupLimit'
+      | 'allocationLimit'
+    >
+  >,
+) {
+  const { server, node } = await loadServer(id)
+  await db.update(schema.servers).set(build).where(eq(schema.servers.id, server.id))
+  await daemonRequest(node, 'POST', `/api/servers/${server.uuid}/sync`).catch(() => {})
+}
+
+/**
+ * Picks a node (public, not in maintenance, enough free memory and disk) in
+ * one of the given locations, and a free allocation on it.
+ */
+export async function findDeployment(locationIds: number[], memory: number, disk: number) {
+  const nodes = await db.query.nodes.findMany()
+  const candidates = nodes.filter(
+    (n) => n.public && !n.maintenance && (!locationIds.length || locationIds.includes(n.locationId)),
+  )
+  const usage = await db
+    .select({
+      nodeId: schema.servers.nodeId,
+      memory: sql<number>`sum(${schema.servers.memory})::int`,
+      disk: sql<number>`sum(${schema.servers.disk})::int`,
+    })
+    .from(schema.servers)
+    .groupBy(schema.servers.nodeId)
+  const cap = (total: number, over: number) =>
+    over < 0 ? Number.POSITIVE_INFINITY : total * (1 + over / 100)
+  const ranked = candidates
+    .map((n) => {
+      const u = usage.find((x) => x.nodeId === n.id)
+      return {
+        node: n,
+        freeMemory: cap(n.memory, n.memoryOverallocate) - (u?.memory ?? 0),
+        freeDisk: cap(n.disk, n.diskOverallocate) - (u?.disk ?? 0),
+      }
+    })
+    .filter((c) => c.freeMemory >= memory && c.freeDisk >= disk)
+    .sort((a, b) => b.freeMemory - a.freeMemory)
+  for (const { node } of ranked) {
+    const free = await db.query.allocations.findMany({
+      where: and(eq(schema.allocations.nodeId, node.id), isNull(schema.allocations.serverId)),
+      limit: 50,
+    })
+    if (free.length) return { node, allocation: free[Math.floor(Math.random() * free.length)]! }
+  }
+  throw new HttpError(
+    422,
+    'No node has enough free resources for this server. Please contact support.',
+    'no_capacity',
+  )
 }
