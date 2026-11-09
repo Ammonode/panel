@@ -16,6 +16,7 @@ const env = z
     MAIL_PASSWORD: z.string().optional(),
     MAIL_FROM_ADDRESS: z.string().default('no-reply@example.com'),
     MAIL_FROM_NAME: z.string().default('Ammonode'),
+    TRUST_PROXY: z.enum(['true', 'false']).default('false'),
   })
   .safeParse(process.env)
 
@@ -36,6 +37,7 @@ export const config = {
   timezone: e.APP_TIMEZONE,
   databaseUrl: e.DATABASE_URL,
   storagePath: resolve(e.STORAGE_PATH),
+  trustProxy: e.TRUST_PROXY === 'true',
   mail: {
     host: e.MAIL_HOST,
     port: e.MAIL_PORT,

@@ -1,5 +1,6 @@
 import { and, eq, gt } from 'drizzle-orm'
 import type { Context, MiddlewareHandler } from 'hono'
+import { getConnInfo } from 'hono/bun'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory'
 import { config } from '../../config'
@@ -12,8 +13,23 @@ import type { AppEnv, User } from '../types'
 export const SESSION_COOKIE = 'ammonode_session'
 const SESSION_TTL = 1000 * 60 * 60 * 24 * 30
 
+/**
+ * Client address. Forwarded headers are only trusted with TRUST_PROXY=true
+ * (behind nginx, Caddy or Cloudflare); otherwise anyone could fake them.
+ */
 export function clientIp(c: Context): string | null {
-  return c.req.header('cf-connecting-ip') ?? c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? null
+  if (config.trustProxy) {
+    const forwarded =
+      c.req.header('cf-connecting-ip') ??
+      c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
+      c.req.header('x-real-ip')
+    if (forwarded) return forwarded
+  }
+  try {
+    return getConnInfo(c).remote.address ?? null
+  } catch {
+    return null
+  }
 }
 
 export async function createSession(

@@ -5,12 +5,14 @@ import { getExtension, publicExtensionAssets } from '../extensions/registry'
 import { HttpError } from '../lib/errors'
 import { getSettings } from '../lib/settings'
 import { authenticate } from './middleware/auth'
+import { rateLimit } from './middleware/rate-limit'
 import { accountRoutes } from './routes/account'
 import { adminBackupStorageRoutes } from './routes/admin/backup-storage'
 import { adminBillingRoutes } from './routes/admin/billing'
 import { adminBrandingRoutes, mediaRoutes } from './routes/admin/branding'
 import { adminEggRoutes, adminNodeExtraRoutes } from './routes/admin/eggs'
 import { adminMailRoutes } from './routes/admin/mail'
+import { adminMountRoutes } from './routes/admin/mounts'
 import { adminDatabaseHostRoutes, adminPanelRoutes } from './routes/admin/panel'
 import { adminServerEditRoutes } from './routes/admin/server-edit'
 import { adminServerRoutes } from './routes/admin/servers'
@@ -76,11 +78,13 @@ export const api = new Hono<AppEnv>()
   .route('/admin', adminEggRoutes)
   .route('/admin', adminBackupStorageRoutes)
   .route('/admin', adminOAuthRoutes)
+  .route('/admin', adminMountRoutes)
   .route('/admin', adminNodeExtraRoutes)
 
 export type Api = typeof api
 
 export function createApp() {
+  const limiter = rateLimit({ limit: 300, windowMs: 60_000 })
   const app = new Hono<AppEnv>()
   app.use(secureHeaders({ crossOriginEmbedderPolicy: false, contentSecurityPolicy: undefined }))
 
@@ -110,6 +114,11 @@ export function createApp() {
 
   // Daemon endpoints use node tokens, not sessions.
   app.route('/api/remote', remoteRoutes)
+  // Daemon and webhook routes are registered above and are not limited.
+  app.use('/api/*', async (c, next) => {
+    if (c.req.path.startsWith('/api/remote/') || c.req.path.startsWith('/api/extensions/')) return next()
+    return limiter(c, next)
+  })
   app.route('/api', api)
   app.route('/media', mediaRoutes)
   app.route('/extension-assets', extensionAssetRoutes)
