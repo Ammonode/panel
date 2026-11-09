@@ -12,6 +12,9 @@ RUN bun run build \
  && bun install --frozen-lockfile --production --filter '@ammonode/server'
 
 FROM oven/bun:1.4-slim
+LABEL org.opencontainers.image.source="https://github.com/Ammonode/panel" \
+      org.opencontainers.image.description="Ammonode panel: billing and game server management" \
+      org.opencontainers.image.licenses="MIT"
 WORKDIR /app
 ENV APP_ENV=production STORAGE_PATH=/app/storage APP_PORT=3000
 COPY --from=build /app/package.json /app/bun.lock ./
