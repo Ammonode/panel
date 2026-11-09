@@ -9,7 +9,16 @@ import type { AppEnv } from '../../types'
 import { validate } from '../../validate'
 
 const MASK = '••••••••'
-const keys = ['backups.driver', 'backups.s3_endpoint', 'backups.s3_region', 'backups.s3_bucket', 'backups.s3_access_key', 'backups.s3_secret_key', 'backups.s3_prefix', 'backups.s3_path_style']
+const keys = [
+  'backups.driver',
+  'backups.s3_endpoint',
+  'backups.s3_region',
+  'backups.s3_bucket',
+  'backups.s3_access_key',
+  'backups.s3_secret_key',
+  'backups.s3_prefix',
+  'backups.s3_path_style',
+]
 
 export const adminBackupStorageRoutes = new Hono<AppEnv>()
   .get('/backup-storage', requirePermission('admin.settings.manage'), async (c) => {
@@ -34,10 +43,12 @@ export const adminBackupStorageRoutes = new Hono<AppEnv>()
     ),
     async (c) => {
       const body = c.req.valid('json')
-      if (body['backups.driver'] === 's3' && (!body['backups.s3_bucket'] || !body['backups.s3_access_key'])) throw new HttpError(422, 'Bucket and access key are required for S3', 'invalid')
+      if (body['backups.driver'] === 's3' && (!body['backups.s3_bucket'] || !body['backups.s3_access_key']))
+        throw new HttpError(422, 'Bucket and access key are required for S3', 'invalid')
       const values: Record<string, unknown> = { ...body }
       if (body['backups.s3_secret_key'] === MASK) delete values['backups.s3_secret_key']
-      else if (body['backups.s3_secret_key']) values['backups.s3_secret_key'] = encrypt(body['backups.s3_secret_key'])
+      else if (body['backups.s3_secret_key'])
+        values['backups.s3_secret_key'] = encrypt(body['backups.s3_secret_key'])
       await setSettings(values)
       return c.json({ ok: true })
     },
