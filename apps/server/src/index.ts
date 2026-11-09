@@ -4,13 +4,16 @@ import { config } from './config'
 import { loadExtensions } from './extensions/registry'
 import { createApp } from './http/app'
 import { registerBillingJobs } from './services/billing/jobs'
+import { startQueueWorker } from './services/queue'
 import { startScheduler } from './services/scheduler'
 import { registerScheduleRunner } from './services/schedules'
+import './services/mail'
 
 await loadExtensions()
 registerBillingJobs()
 registerScheduleRunner()
 startScheduler()
+startQueueWorker()
 
 const app = createApp()
 
