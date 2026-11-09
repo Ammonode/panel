@@ -23,7 +23,10 @@ const createBody = z.object({
   disk: z.number().int().min(0),
   io: z.number().int().min(10).max(1000).optional(),
   cpu: z.number().int().min(0).optional(),
-  threads: z.string().regex(/^[0-9,-]*$/).nullish(),
+  threads: z
+    .string()
+    .regex(/^[0-9,-]*$/)
+    .nullish(),
   oomDisabled: z.boolean().optional(),
   image: z.string().max(191).optional(),
   startup: z.string().optional(),
@@ -54,10 +57,17 @@ export const adminServerRoutes = new Hono<AppEnv>()
     const rows = await db.query.servers.findMany({ orderBy: desc(schema.servers.id), limit: 200 })
     return c.json({ data: rows })
   })
-  .get('/servers/:id', requirePermission('admin.servers.view'), async (c) => c.json({ data: (await load(sid(c.req.param('id')))).server }))
+  .get('/servers/:id', requirePermission('admin.servers.view'), async (c) =>
+    c.json({ data: (await load(sid(c.req.param('id')))).server }),
+  )
   .post('/servers', requirePermission('admin.servers.manage'), validate('json', createBody), async (c) => {
     const server = await createServer(c.req.valid('json'))
-    await logActivity({ event: 'admin:server.create', actorId: c.get('user')!.id, ip: clientIp(c), subject: { type: 'server', id: server.id } })
+    await logActivity({
+      event: 'admin:server.create',
+      actorId: c.get('user')!.id,
+      ip: clientIp(c),
+      subject: { type: 'server', id: server.id },
+    })
     return c.json({ data: server }, 201)
   })
   .post('/servers/:id/reinstall', requirePermission('admin.servers.manage'), async (c) => {
@@ -66,13 +76,21 @@ export const adminServerRoutes = new Hono<AppEnv>()
     await daemonRequest(node, 'POST', `/api/servers/${server.uuid}/reinstall`)
     return c.json({ ok: true })
   })
-  .post('/servers/:id/suspend', requirePermission('admin.servers.manage'), validate('json', z.object({ suspended: z.boolean() })), async (c) => {
-    const { server, node } = await load(sid(c.req.param('id')))
-    const suspended = c.req.valid('json').suspended
-    await db.update(schema.servers).set({ status: suspended ? 'suspended' : null }).where(eq(schema.servers.id, server.id))
-    await daemonRequest(node, 'POST', `/api/servers/${server.uuid}/sync`).catch(() => {})
-    return c.json({ ok: true })
-  })
+  .post(
+    '/servers/:id/suspend',
+    requirePermission('admin.servers.manage'),
+    validate('json', z.object({ suspended: z.boolean() })),
+    async (c) => {
+      const { server, node } = await load(sid(c.req.param('id')))
+      const suspended = c.req.valid('json').suspended
+      await db
+        .update(schema.servers)
+        .set({ status: suspended ? 'suspended' : null })
+        .where(eq(schema.servers.id, server.id))
+      await daemonRequest(node, 'POST', `/api/servers/${server.uuid}/sync`).catch(() => {})
+      return c.json({ ok: true })
+    },
+  )
   .delete('/servers/:id', requirePermission('admin.servers.manage'), async (c) => {
     const { server, node } = await load(sid(c.req.param('id')))
     const force = c.req.query('force') === '1'
@@ -80,10 +98,18 @@ export const adminServerRoutes = new Hono<AppEnv>()
       if (!force) throw e
     })
     await db.transaction(async (tx) => {
-      await tx.update(schema.allocations).set({ serverId: null, notes: null }).where(eq(schema.allocations.serverId, server.id))
+      await tx
+        .update(schema.allocations)
+        .set({ serverId: null, notes: null })
+        .where(eq(schema.allocations.serverId, server.id))
       await tx.delete(schema.servers).where(eq(schema.servers.id, server.id))
     })
-    await logActivity({ event: 'admin:server.delete', actorId: c.get('user')!.id, ip: clientIp(c), properties: { uuid: server.uuid, name: server.name } })
+    await logActivity({
+      event: 'admin:server.delete',
+      actorId: c.get('user')!.id,
+      ip: clientIp(c),
+      properties: { uuid: server.uuid, name: server.name },
+    })
     return c.json({ ok: true })
   })
   // Generated daemon configuration for a node

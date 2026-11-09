@@ -1,11 +1,16 @@
-import { HttpError } from '../lib/errors'
-import { decrypt } from '../lib/crypto'
 import type { schema } from '../db'
+import { decrypt } from '../lib/crypto'
+import { HttpError } from '../lib/errors'
 
 type Node = typeof schema.nodes.$inferSelect
 
 /** Calls the Ammonode daemon running on a node. */
-export async function daemonRequest<T = unknown>(node: Node, method: string, path: string, body?: unknown): Promise<T> {
+export async function daemonRequest<T = unknown>(
+  node: Node,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
   const url = `${node.scheme}://${node.fqdn}:${node.daemonListen}${path}`
   let res: Response
   try {
@@ -37,7 +42,15 @@ export async function signDaemonToken(node: Node, claims: Record<string, unknown
   const now = Math.floor(Date.now() / 1000)
   const payload = { ...claims, iat: now, nbf: now - 5, exp: now + ttlSeconds, jti: crypto.randomUUID() }
   const data = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc(payload)}`
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(decrypt(node.token)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  const sig = Buffer.from(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data))).toString('base64url')
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(decrypt(node.token)),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const sig = Buffer.from(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data))).toString(
+    'base64url',
+  )
   return `${data}.${sig}`
 }

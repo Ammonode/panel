@@ -25,7 +25,9 @@ const nodeAuth = createMiddleware<RemoteEnv>(async (c, next) => {
 })
 
 const serverOnNode = async (node: Node, uuid: string) => {
-  const server = await db.query.servers.findFirst({ where: and(eq(schema.servers.uuid, uuid), eq(schema.servers.nodeId, node.id)) })
+  const server = await db.query.servers.findFirst({
+    where: and(eq(schema.servers.uuid, uuid), eq(schema.servers.nodeId, node.id)),
+  })
   if (!server) throw notFound('Server')
   return server
 }
@@ -33,7 +35,10 @@ const serverOnNode = async (node: Node, uuid: string) => {
 export const remoteRoutes = new Hono<RemoteEnv>()
   .use(nodeAuth)
   .post('/heartbeat', async (c) => {
-    await db.update(schema.nodes).set({ lastHeartbeatAt: new Date() }).where(eq(schema.nodes.id, c.get('node').id))
+    await db
+      .update(schema.nodes)
+      .set({ lastHeartbeatAt: new Date() })
+      .where(eq(schema.nodes.id, c.get('node').id))
     return c.body(null, 204)
   })
   .get('/servers', async (c) => {
@@ -57,7 +62,10 @@ export const remoteRoutes = new Hono<RemoteEnv>()
       const status = successful ? null : reinstall ? 'reinstall_failed' : 'install_failed'
       await db
         .update(schema.servers)
-        .set({ status: server.status === 'suspended' ? 'suspended' : status, installedAt: successful ? new Date() : server.installedAt })
+        .set({
+          status: server.status === 'suspended' ? 'suspended' : status,
+          installedAt: successful ? new Date() : server.installedAt,
+        })
         .where(eq(schema.servers.id, server.id))
       await logActivity({
         event: successful ? 'server:install.completed' : 'server:install.failed',

@@ -31,7 +31,10 @@ export type CreateServerInput = {
 
 /** Checks a value against a Laravel-style rule string used by Pterodactyl eggs (e.g. `required|string|max:20`). */
 export function validateVariable(rules: string, value: string): string | null {
-  const list = rules.split('|').map((r) => r.trim()).filter(Boolean)
+  const list = rules
+    .split('|')
+    .map((r) => r.trim())
+    .filter(Boolean)
   const nullable = list.includes('nullable')
   if (value === '' && nullable) return null
   for (const rule of list) {
@@ -54,7 +57,8 @@ export function validateVariable(rules: string, value: string): string | null {
         if (isNum ? Number(value) < Number(arg) : value.length < Number(arg)) return `must be at least ${arg}`
         break
       case 'max':
-        if (isNum ? Number(value) > Number(arg) : value.length > Number(arg)) return `may not be greater than ${arg}`
+        if (isNum ? Number(value) > Number(arg) : value.length > Number(arg))
+          return `may not be greater than ${arg}`
         break
       case 'between': {
         const [lo, hi] = arg.split(',').map(Number) as [number, number]
@@ -68,7 +72,8 @@ export function validateVariable(rules: string, value: string): string | null {
       case 'regex': {
         const m = arg.match(/^\/(.*)\/([a-z]*)$/s)
         try {
-          if (m && value !== '' && !new RegExp(m[1]!, m[2]!.replace(/[^gimsuy]/g, '')).test(value)) return 'has an invalid format'
+          if (m && value !== '' && !new RegExp(m[1]!, m[2]!.replace(/[^gimsuy]/g, '')).test(value))
+            return 'has an invalid format'
         } catch {}
         break
       }
@@ -93,10 +98,14 @@ export async function createServer(input: CreateServerInput) {
 
   // Resource check against node capacity (with overallocation, -1 = unlimited)
   const [used] = await db
-    .select({ memory: sql<number>`coalesce(sum(${schema.servers.memory}),0)::int`, disk: sql<number>`coalesce(sum(${schema.servers.disk}),0)::int` })
+    .select({
+      memory: sql<number>`coalesce(sum(${schema.servers.memory}),0)::int`,
+      disk: sql<number>`coalesce(sum(${schema.servers.disk}),0)::int`,
+    })
     .from(schema.servers)
     .where(eq(schema.servers.nodeId, node.id))
-  const cap = (total: number, over: number) => (over < 0 ? Number.POSITIVE_INFINITY : total * (1 + over / 100))
+  const cap = (total: number, over: number) =>
+    over < 0 ? Number.POSITIVE_INFINITY : total * (1 + over / 100)
   if (used!.memory + input.memory > cap(node.memory, node.memoryOverallocate)) {
     throw new HttpError(422, 'The node does not have enough memory for this server', 'node_full')
   }
@@ -154,16 +163,27 @@ export async function createServer(input: CreateServerInput) {
       const claimed = await tx
         .update(schema.allocations)
         .set({ serverId: row!.id })
-        .where(and(eq(schema.allocations.id, id), eq(schema.allocations.nodeId, node.id), isNull(schema.allocations.serverId)))
+        .where(
+          and(
+            eq(schema.allocations.id, id),
+            eq(schema.allocations.nodeId, node.id),
+            isNull(schema.allocations.serverId),
+          ),
+        )
         .returning()
-      if (!claimed.length) throw new HttpError(422, `Allocation ${id} is not available on this node`, 'invalid')
+      if (!claimed.length)
+        throw new HttpError(422, `Allocation ${id} is not available on this node`, 'invalid')
     }
-    if (values.length) await tx.insert(schema.serverVariables).values(values.map((v) => ({ ...v, serverId: row!.id })))
+    if (values.length)
+      await tx.insert(schema.serverVariables).values(values.map((v) => ({ ...v, serverId: row!.id })))
     return row!
   })
 
   try {
-    await daemonRequest(node, 'POST', '/api/servers', { uuid, start_on_completion: input.startOnCompletion ?? false })
+    await daemonRequest(node, 'POST', '/api/servers', {
+      uuid,
+      start_on_completion: input.startOnCompletion ?? false,
+    })
   } catch (e) {
     // Keep the record; the admin can retry the install once the node is reachable.
     await db.update(schema.servers).set({ status: 'install_failed' }).where(eq(schema.servers.id, server.id))
