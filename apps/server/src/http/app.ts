@@ -9,6 +9,7 @@ import { adminPanelRoutes } from './routes/admin/panel'
 import { adminServerRoutes } from './routes/admin/servers'
 import { authRoutes } from './routes/auth'
 import { clientRoutes } from './routes/client'
+import { clientServerRoutes } from './routes/client-server'
 import { remoteRoutes } from './routes/remote'
 import type { AppEnv } from './types'
 
@@ -30,6 +31,7 @@ export const api = new Hono<AppEnv>()
   .route('/auth', authRoutes)
   .route('/account', accountRoutes)
   .route('/client', clientRoutes)
+  .route('/client/servers', clientServerRoutes)
   .route('/admin', adminPanelRoutes)
   .route('/admin', adminServerRoutes)
 
