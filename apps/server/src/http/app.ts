@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { secureHeaders } from 'hono/secure-headers'
 import { config } from '../config'
-import { getExtension } from '../extensions/registry'
+import { getExtension, publicExtensionAssets } from '../extensions/registry'
 import { HttpError } from '../lib/errors'
 import { getSettings } from '../lib/settings'
 import { authenticate } from './middleware/auth'
@@ -21,6 +21,7 @@ import { billingRoutes } from './routes/billing'
 import { clientRoutes } from './routes/client'
 import { clientServerRoutes } from './routes/client-server'
 import { clientServerExtraRoutes } from './routes/client-server-extra'
+import { extensionAssetRoutes } from './routes/extension-assets'
 import { remoteRoutes } from './routes/remote'
 import { storeRoutes } from './routes/store'
 import { adminTicketRoutes, clientTicketRoutes } from './routes/tickets'
@@ -44,6 +45,7 @@ export const api = new Hono<AppEnv>()
       ]),
     ),
   )
+  .get('/ui/extensions', (c) => c.json({ data: publicExtensionAssets() }))
   .route('/auth', authRoutes)
   .route('/auth', impersonationRoutes)
   .route('/account', accountRoutes)
@@ -102,6 +104,7 @@ export function createApp() {
   app.route('/api/remote', remoteRoutes)
   app.route('/api', api)
   app.route('/media', mediaRoutes)
+  app.route('/extension-assets', extensionAssetRoutes)
   app.all('/api/*', (c) => c.json({ error: { code: 'not_found', message: 'Route not found' } }, 404))
 
   app.onError((err, c) => {

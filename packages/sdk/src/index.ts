@@ -170,3 +170,56 @@ export interface ServerExtension {
 }
 
 export const defineExtension = (ext: ServerExtension) => ext
+
+// ── Web (browser) extensions ─────────────────────────────────────────────
+// A web module is a plain ES module listed as `web` in extension.json. Its
+// default export receives the panel's web API (also on `window.Ammonode`).
+
+export type WebSlot =
+  | 'dashboard.top'
+  | 'dashboard.bottom'
+  | 'server.console.sidebar'
+  | 'server.tabs'
+  | 'topbar.actions'
+  | 'admin.dashboard'
+  | (string & {})
+
+export interface WebNavItem {
+  id: string
+  label: string
+  /** Extension pages live under /x/<path> (client) or /admin/x/<path> (admin). */
+  to: string
+  area: 'client' | 'admin'
+  icon?: unknown
+  order?: number
+  permission?: string
+  requires?: string
+}
+
+export interface WebRegistry {
+  addNavItem(item: WebNavItem): void
+  addRoute(route: { path: string; area: 'client' | 'admin'; component: unknown }): void
+  addSlot(slot: WebSlot, id: string, component: unknown, order?: number): void
+  /** Replace a core component, e.g. `Sidebar` or `Topbar` (themes). */
+  override(name: string, component: unknown): void
+}
+
+export interface AmmonodeWebApi {
+  version: number
+  /** The panel's React instance: always use this one, never bundle your own. */
+  React: unknown
+  jsx: unknown
+  /** UI kit: Button, Card, CardHeader, Input, Field, Pill, Modal, Toggle, ... */
+  ui: Record<string, unknown>
+  api: {
+    get<T>(path: string): Promise<T>
+    post<T>(path: string, body?: unknown): Promise<T>
+    patch<T>(path: string, body?: unknown): Promise<T>
+    put<T>(path: string, body?: unknown): Promise<T>
+    delete<T>(path: string, body?: unknown): Promise<T>
+  }
+  registry: WebRegistry
+}
+
+export type WebExtension = (api: AmmonodeWebApi) => void | Promise<void>
+export const defineWebExtension = (fn: WebExtension) => fn

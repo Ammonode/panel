@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { CoreEvent, ExtensionApi, ExtensionManifest, ServerExtension } from '@ammonode/sdk'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { config } from '../config'
 import { db, schema } from '../db'
 import { decrypt, encrypt } from '../lib/crypto'
@@ -201,6 +201,14 @@ export async function saveExtension(
     ? encodeSettings(ext.module, values.settings, row?.settings ?? {})
     : (row?.settings ?? {})
   const enabled = values.enabled ?? row?.enabled ?? false
+  // Only one theme can be active at a time.
+  if (enabled && ext.manifest.type === 'theme') {
+    const others = listExtensions()
+      .filter((e) => e.manifest.type === 'theme' && e.manifest.id !== id)
+      .map((e) => e.manifest.id)
+    if (others.length)
+      await db.update(schema.extensions).set({ enabled: false }).where(inArray(schema.extensions.id, others))
+  }
   await db
     .insert(schema.extensions)
     .values({ id, type: ext.manifest.type, version: ext.manifest.version, enabled, settings })
@@ -209,4 +217,21 @@ export async function saveExtension(
       set: { enabled, settings, version: ext.manifest.version },
     })
   await loadExtensions()
+}
+
+/** What the browser needs to load: web modules and stylesheets of enabled extensions. */
+export function publicExtensionAssets() {
+  return listExtensions()
+    .filter((e) => e.enabled && !e.builtin && e.path && (e.manifest.web || e.manifest.stylesheet))
+    .map((e) => ({
+      id: e.manifest.id,
+      type: e.manifest.type,
+      version: e.manifest.version,
+      web: e.manifest.web
+        ? `/extension-assets/${e.manifest.id}/${e.manifest.web.replace(/^\.?\//, '')}?v=${e.manifest.version}`
+        : null,
+      stylesheet: e.manifest.stylesheet
+        ? `/extension-assets/${e.manifest.id}/${e.manifest.stylesheet.replace(/^\.?\//, '')}?v=${e.manifest.version}`
+        : null,
+    }))
 }
