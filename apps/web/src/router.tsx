@@ -15,6 +15,7 @@ import {
   AdminServicesPage,
   AdminSettingsPage,
 } from './routes/admin/billing'
+import { AdminAnnouncementsPage } from './routes/admin/content'
 import { AdminEggsPage } from './routes/admin/eggs'
 import { AdminMailPage } from './routes/admin/mail'
 import { AdminDatabaseHostsPage, AdminLocationsPage, AdminNodesPage } from './routes/admin/nodes'
@@ -23,6 +24,7 @@ import { AdminConfigOptionsPage, AdminProductEditPage, AdminProductsPage } from 
 import { AdminServerPage, AdminServersPage } from './routes/admin/servers'
 import { AdminTicketPage, AdminTicketsPage } from './routes/admin/tickets'
 import { AdminRolesPage, AdminUserPage, AdminUsersPage } from './routes/admin/users'
+import { AnnouncementsPage } from './routes/announcements'
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -144,6 +146,8 @@ const routeTree = root.addChildren([
     page('/admin/extensions', AdminExtensionsPage),
     page('/admin/settings', AdminSettingsPage),
     page('/admin/settings/email', AdminMailPage),
+    page('/admin/announcements', AdminAnnouncementsPage),
+    page('/announcements', AnnouncementsPage),
   ]),
 ])
 

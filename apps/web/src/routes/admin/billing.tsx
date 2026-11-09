@@ -7,6 +7,7 @@ import { Button, Card, CardHeader, Empty, Field, Input, Modal, Pill, Toggle } fr
 import { api, formatDate, formatMoney } from '../../lib/api'
 import { invoiceTone, statusLabel } from '../billing/invoices'
 import { serviceTone } from '../billing/services'
+import { BrandingCard } from './content'
 
 const selectClass = 'h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-sm'
 
@@ -464,6 +465,9 @@ export function AdminInvoicesPage() {
 
 const billingSettings: SettingField[] = [
   { key: 'app.name', label: 'Company name', type: 'text' },
+  { key: 'app.support_email', label: 'Support email', type: 'email', description: 'Shown to customers' },
+  { key: 'auth.require_email_verification', label: 'Require a verified email to order', type: 'boolean' },
+  { key: 'tickets.enabled', label: 'Support tickets', type: 'boolean' },
   {
     key: 'billing.invoice_number_format',
     label: 'Invoice number format',
@@ -501,6 +505,15 @@ const billingSettings: SettingField[] = [
 ]
 
 export function AdminSettingsPage() {
+  return (
+    <>
+      <BrandingCard />
+      <GeneralSettings />
+    </>
+  )
+}
+
+function GeneralSettings() {
   const qc = useQueryClient()
   const { data } = useQuery({
     queryKey: ['admin', 'settings'],

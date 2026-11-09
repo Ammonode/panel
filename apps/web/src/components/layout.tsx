@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   LifeBuoy,
   MapPin,
+  Megaphone,
   Moon,
   Package,
   PanelLeft,
@@ -30,6 +31,7 @@ import { type NavItem, Overridable, Slot, useRegistry } from '../extensions/regi
 import { api, can, formatMoney, type User } from '../lib/api'
 import { useMe, useUser } from '../lib/auth'
 import { useDismiss } from '../lib/hooks'
+import { Brand } from '../lib/settings'
 import { useThemeMode } from '../lib/theme'
 import { Button, cn, Input, Toggle } from './ui'
 
@@ -133,6 +135,14 @@ const adminNav: NavItem[] = [
     permission: 'admin.invoices.view',
   },
   {
+    id: 'admin-announcements',
+    label: 'Announcements',
+    to: '/admin/announcements',
+    icon: Megaphone,
+    area: 'admin',
+    permission: 'admin.announcements.manage',
+  },
+  {
     id: 'admin-tickets',
     label: 'Tickets',
     to: '/admin/tickets',
@@ -198,8 +208,7 @@ function Sidebar({
     >
       <div className="mb-6 flex items-center justify-between px-2">
         <Link to="/" className="flex items-center gap-2 text-[19px] font-semibold tracking-tight">
-          <img src="/favicon.svg" alt="" className="size-6" />
-          ammonode
+          <Brand />
         </Link>
         <button
           type="button"

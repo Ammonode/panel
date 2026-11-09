@@ -25,6 +25,7 @@ import {
 } from '../components/ui'
 import { Slot } from '../extensions/registry'
 import { api, formatDate, formatMoney } from '../lib/api'
+import { LatestAnnouncement } from './announcements'
 
 type Ticket = { id: number; subject: string; status: string; updatedAt: string }
 type Invoice = {
@@ -38,9 +39,15 @@ type Invoice = {
 }
 type Overview = {
   stats: { servers: number; services: number; invoicesDue: number }
+  usage: { memory: Usage; disk: Usage }
   tickets: Ticket[]
   invoices: Invoice[]
 }
+
+type Usage = { used: number; total: number }
+const pct = (u?: Usage) => (u?.total ? Math.min(100, (u.used / u.total) * 100) : 0)
+const gib = (mib: number) => (mib >= 1024 ? `${(mib / 1024).toFixed(1)} GB` : `${mib} MB`)
+const usageDetail = (u?: Usage) => (u?.total ? `${gib(u.used)} / ${gib(u.total)}` : 'No servers yet')
 
 const ticketTone = { open: 'warn', answered: 'info', replied: 'info', closed: 'neutral' } as const
 
@@ -97,6 +104,7 @@ export function DashboardPage() {
 
   return (
     <>
+      <LatestAnnouncement />
       <Slot name="dashboard.top" />
       <Card>
         <CardHeader title="Overview" />
@@ -124,8 +132,18 @@ export function DashboardPage() {
         <Card className="flex flex-col">
           <CardHeader title="Resource usage" />
           <div className="flex-1 space-y-3 px-5 pb-5">
-            <UsageRow title="Memory" detail="Across all your servers" value={0} />
-            <UsageRow title="Disk" detail="Across all your servers" value={0} />
+            <UsageRow
+              title="Memory"
+              detail={usageDetail(data?.usage.memory)}
+              value={pct(data?.usage.memory)}
+              warn={pct(data?.usage.memory) >= 85}
+            />
+            <UsageRow
+              title="Disk"
+              detail={usageDetail(data?.usage.disk)}
+              value={pct(data?.usage.disk)}
+              warn={pct(data?.usage.disk) >= 85}
+            />
           </div>
           <CardFooter onClick={() => navigate({ to: '/services' })}>
             <Flame className="size-4 text-danger" /> Upgrade now
@@ -161,7 +179,7 @@ export function DashboardPage() {
                   dot={t.status !== 'closed'}
                   tone={ticketTone[t.status as keyof typeof ticketTone] ?? 'neutral'}
                 >
-                  {t.status[0]!.toUpperCase() + t.status.slice(1)}
+                  {t.status === 'replied' ? 'Awaiting reply' : t.status[0]!.toUpperCase() + t.status.slice(1)}
                 </Pill>
               </Link>
             ))}

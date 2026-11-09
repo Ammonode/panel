@@ -3,6 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useEffect, useState } from 'react'
 import { Button, Field, Input } from '../components/ui'
 import { ApiError, api } from '../lib/api'
+import { Brand } from '../lib/settings'
 
 export function AuthShell({
   title,
@@ -13,16 +14,11 @@ export function AuthShell({
   subtitle: string
   children: React.ReactNode
 }) {
-  const settings = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => api.get<Record<string, unknown>>('/settings/public'),
-  })
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-[400px]">
         <div className="mb-6 flex items-center justify-center gap-2 text-xl font-semibold">
-          <img src="/favicon.svg" alt="" className="size-7" />
-          {String(settings.data?.['app.name'] ?? 'Ammonode').toLowerCase()}
+          <Brand size="lg" />
         </div>
         <div className="rounded-card border border-line bg-surface p-6 shadow-sm">
           <h1 className="text-lg font-medium">{title}</h1>
