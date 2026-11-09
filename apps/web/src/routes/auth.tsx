@@ -1,8 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useEffect, useState } from 'react'
 import { Button, Field, Input } from '../components/ui'
 import { ApiError, api } from '../lib/api'
+import { useMe } from '../lib/auth'
 import { Brand } from '../lib/settings'
 
 export function AuthShell({
@@ -35,7 +36,18 @@ const errorOf = (e: unknown) => (e instanceof ApiError ? e : null)
 export function LoginPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  // After an OAuth sign in the session may still be waiting for the 2FA code.
+  const me = useMe()
   const [step, setStep] = useState<'password' | '2fa'>('password')
+  useEffect(() => {
+    if (me.data?.twoFactorPending) setStep('2fa')
+  }, [me.data])
+  const oauthError = new URLSearchParams(location.search).get('oauth_error')
+  const providers = useQuery({
+    queryKey: ['oauth-providers'],
+    queryFn: () =>
+      api.get<{ data: { id: string; label: string }[] }>('/auth/oauth/providers').then((r) => r.data),
+  })
   const [form, setForm] = useState({ login: '', password: '', code: '' })
   const login = useMutation({
     mutationFn: async () => {
@@ -110,6 +122,32 @@ export function LoginPage() {
           </Link>
         )}
       </form>
+      {oauthError && (
+        <p className="mt-3 rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">{oauthError}</p>
+      )}
+      {step === 'password' && !!providers.data?.length && (
+        <div className="mt-5 space-y-2">
+          <p className="flex items-center gap-3 text-xs text-muted">
+            <span className="h-px flex-1 bg-line" />
+            or continue with
+            <span className="h-px flex-1 bg-line" />
+          </p>
+          <div
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${Math.min(3, providers.data.length)}, minmax(0, 1fr))` }}
+          >
+            {providers.data.map((p) => (
+              <a
+                key={p.id}
+                href={`/api/auth/oauth/${p.id}/redirect`}
+                className="flex h-10 items-center justify-center rounded-[10px] border border-line text-sm font-medium hover:bg-surface-2"
+              >
+                {p.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
       <p className="mt-5 text-center text-[13px] text-muted">
         No account yet?{' '}
         <Link to="/register" className="font-medium text-fg hover:underline">

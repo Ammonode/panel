@@ -307,3 +307,86 @@ export function BackupStorageCard() {
     </Card>
   )
 }
+
+type OAuthProvider = {
+  id: string
+  label: string
+  enabled: boolean
+  clientId: string
+  clientSecret: string
+  callbackUrl: string
+}
+
+function OAuthRow({ p }: { p: OAuthProvider }) {
+  const qc = useQueryClient()
+  const [v, setV] = useState(p)
+  const save = useMutation({
+    mutationFn: () =>
+      api.put(`/admin/oauth/${p.id}`, {
+        enabled: v.enabled,
+        clientId: v.clientId,
+        clientSecret: v.clientSecret,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'oauth'] }),
+  })
+  return (
+    <div className="space-y-3 rounded-[12px] border border-line bg-surface-2 p-4">
+      <div className="flex items-center justify-between">
+        <span className="font-medium">{p.label}</span>
+        <Toggle
+          checked={v.enabled}
+          onChange={(x) => setV({ ...v, enabled: x })}
+          label={`Enable ${p.label}`}
+        />
+      </div>
+      <p className="text-xs text-muted">
+        Callback URL: <code className="break-all">{p.callbackUrl}</code>
+      </p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Client ID">
+          <Input
+            value={v.clientId}
+            autoComplete="off"
+            onChange={(e) => setV({ ...v, clientId: e.target.value })}
+          />
+        </Field>
+        <Field label="Client secret">
+          <Input
+            type="password"
+            value={v.clientSecret}
+            autoComplete="new-password"
+            onChange={(e) => setV({ ...v, clientSecret: e.target.value })}
+          />
+        </Field>
+      </div>
+      <div className="flex items-center justify-end gap-3">
+        {save.error && <span className="text-[13px] text-danger">{save.error.message}</span>}
+        {save.isSuccess && <span className="text-[13px] text-success">Saved</span>}
+        <Button size="sm" loading={save.isPending} onClick={() => save.mutate()}>
+          Save
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Discord, Google and GitHub sign in. */
+export function OAuthCard() {
+  const { data } = useQuery({
+    queryKey: ['admin', 'oauth'],
+    queryFn: () => api.get<{ data: OAuthProvider[] }>('/admin/oauth').then((r) => r.data),
+  })
+  return (
+    <Card>
+      <CardHeader
+        title="Sign in with"
+        subtitle="Let customers sign in with another account. Existing accounts are only linked when the provider confirms the email address."
+      />
+      <div className="grid gap-3 px-5 pb-5 lg:grid-cols-3">
+        {data?.map((p) => (
+          <OAuthRow key={p.id} p={p} />
+        ))}
+      </div>
+    </Card>
+  )
+}

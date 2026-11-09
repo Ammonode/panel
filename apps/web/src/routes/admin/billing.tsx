@@ -7,7 +7,7 @@ import { Button, Card, CardHeader, Empty, Field, Input, Modal, Pill, Toggle } fr
 import { api, formatDate, formatMoney } from '../../lib/api'
 import { invoiceTone, statusLabel } from '../billing/invoices'
 import { serviceTone } from '../billing/services'
-import { BackupStorageCard, BrandingCard } from './content'
+import { BackupStorageCard, BrandingCard, OAuthCard } from './content'
 
 const selectClass = 'h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-sm'
 
@@ -523,6 +523,7 @@ export function AdminSettingsPage() {
     <>
       <BrandingCard />
       <GeneralSettings />
+      <OAuthCard />
       <BackupStorageCard />
     </>
   )

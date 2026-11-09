@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router'
 import { AppLayout } from './components/layout'
 import { meQuery } from './lib/auth'
+import { AccountPage, SecurityPage } from './routes/account'
 import {
   AdminCouponsPage,
   AdminExtensionsPage,
@@ -151,8 +152,8 @@ const routeTree = root.addChildren([
     page('/tickets', TicketsPage),
     page('/tickets/new', NewTicketPage),
     page('/tickets/$id', TicketPage),
-    placeholder('/account', 'Account'),
-    placeholder('/account/security', 'Security'),
+    page('/account', AccountPage),
+    page('/account/security', SecurityPage),
     placeholder('/help', 'Help'),
     page('/admin', AdminOverviewPage),
     page('/admin/users', AdminUsersPage),
