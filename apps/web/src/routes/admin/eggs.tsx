@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Download, ExternalLink, RefreshCw, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button, Card, CardHeader, Empty, Input, Pill } from '../../components/ui'
@@ -63,14 +64,21 @@ export function AdminEggsPage() {
             <div key={n.id} className="rounded-[12px] border border-line bg-surface-2 p-4">
               <div className="flex items-center justify-between">
                 <p className="font-medium">{n.name}</p>
-                <span className="text-xs text-muted">{n.eggs.length} eggs</span>
+                <span className="flex items-center gap-3 text-xs text-muted">
+                  {n.eggs.length} eggs
+                  <a href={`/admin/eggs/new?nest=${n.id}`} className="font-medium text-fg hover:underline">
+                    + New egg
+                  </a>
+                </span>
               </div>
               {n.description && <p className="mt-0.5 text-xs text-muted">{n.description}</p>}
               {!!n.eggs.length && (
                 <ul className="mt-3 flex flex-wrap gap-1.5">
                   {n.eggs.map((e) => (
                     <li key={e.id}>
-                      <Pill tone="info">{e.name}</Pill>
+                      <Link to="/admin/eggs/$id" params={{ id: String(e.id) }}>
+                        <Pill tone="info">{e.name}</Pill>
+                      </Link>
                     </li>
                   ))}
                 </ul>

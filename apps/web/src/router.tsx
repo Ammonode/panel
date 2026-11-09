@@ -16,8 +16,10 @@ import {
   AdminSettingsPage,
 } from './routes/admin/billing'
 import { AdminAnnouncementsPage } from './routes/admin/content'
+import { AdminEggEditPage } from './routes/admin/egg-edit'
 import { AdminEggsPage } from './routes/admin/eggs'
 import { AdminMailPage } from './routes/admin/mail'
+import { AdminNodePage } from './routes/admin/node-edit'
 import { AdminDatabaseHostsPage, AdminLocationsPage, AdminNodesPage } from './routes/admin/nodes'
 import { AdminOverviewPage } from './routes/admin/overview'
 import { AdminConfigOptionsPage, AdminProductEditPage, AdminProductsPage } from './routes/admin/products'
@@ -132,9 +134,11 @@ const routeTree = root.addChildren([
     page('/admin/servers', AdminServersPage),
     page('/admin/servers/$id', AdminServerPage),
     page('/admin/nodes', AdminNodesPage),
+    page('/admin/nodes/$id', AdminNodePage),
     page('/admin/locations', AdminLocationsPage),
     page('/admin/database-hosts', AdminDatabaseHostsPage),
     page('/admin/eggs', AdminEggsPage),
+    page('/admin/eggs/$id', AdminEggEditPage),
     page('/admin/products', AdminProductsPage),
     page('/admin/products/$id', AdminProductEditPage),
     page('/admin/config-options', AdminConfigOptionsPage),

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 import { Button, Card, CardHeader, Empty, Field, Input, Pill } from '../../components/ui'
 import { api, formatDate } from '../../lib/api'
@@ -108,7 +109,13 @@ export function AdminNodesPage() {
           {nodes.data?.data.map((n) => (
             <div key={n.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
               <div>
-                <p className="font-medium">{n.name}</p>
+                <Link
+                  to="/admin/nodes/$id"
+                  params={{ id: String(n.id) }}
+                  className="font-medium hover:underline"
+                >
+                  {n.name}
+                </Link>
                 <p className="text-xs text-muted">
                   {n.scheme}://{n.fqdn} · {n.memory} MiB · {Math.round(n.disk / 1024)} GiB
                 </p>
