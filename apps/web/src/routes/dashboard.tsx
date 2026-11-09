@@ -185,7 +185,9 @@ export function DashboardPage() {
           <Button variant="outline">
             <SlidersHorizontal className="size-4" /> Filters
           </Button>
-          <Button disabled={!invoices.length}>Pay all · {formatMoney(due)}</Button>
+          <Button disabled={!invoices.length} onClick={() => navigate({ to: '/invoices' })}>
+            Pay all · {formatMoney(due)}
+          </Button>
         </div>
         <div className="overflow-x-auto px-5 pb-5">
           <table className="w-full min-w-[640px] text-[13px]">
@@ -224,7 +226,11 @@ export function DashboardPage() {
                     <Pill tone="info">Upcoming</Pill>
                   </td>
                   <td>
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate({ to: '/invoices/$id', params: { id: String(inv.id) } })}
+                    >
                       Pay now
                     </Button>
                   </td>
