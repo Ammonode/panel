@@ -58,7 +58,7 @@ export function HelpPage() {
           </div>
         )}
         <a
-          href="https://github.com/Ammonode/docs"
+          href="https://ammonode.github.io/docs/"
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-4 rounded-card border border-line bg-surface p-5 hover:border-subtle"

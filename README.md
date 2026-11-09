@@ -37,7 +37,7 @@ Then add a node in **Admin → Nodes** and install the
 [daemon](https://github.com/Ammonode/daemon) on it.
 
 Full guides (manual install, reverse proxies, payments, backups, extensions):
-https://github.com/Ammonode/docs
+https://ammonode.github.io/docs/
 
 ## Development
 

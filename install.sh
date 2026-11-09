@@ -209,4 +209,4 @@ fi
 echo
 info "Ammonode is installed: $APP_URL"
 echo "    Sign in as $ADMIN_USER, then add a node under Admin > Nodes and install the daemon on it:"
-echo "    https://github.com/Ammonode/docs"
+echo "    https://ammonode.github.io/docs/guide/install-daemon"
