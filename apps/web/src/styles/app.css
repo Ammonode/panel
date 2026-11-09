@@ -1,0 +1,108 @@
+@import "tailwindcss";
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens. Themes override these variables (see docs: Themes),
+ * every component reads colors through them.
+ */
+:root {
+  --am-canvas: #f3f4f6;
+  --am-surface: #ffffff;
+  --am-surface-2: #f6f7f9;
+  --am-border: #e6e7eb;
+  --am-text: #1b1d27;
+  --am-muted: #6b6f7b;
+  --am-subtle: #9a9eab;
+  --am-primary: #1c1f2b;
+  --am-primary-fg: #ffffff;
+  --am-nav-active: #1f2230;
+  --am-nav-active-fg: #ffffff;
+  --am-accent-from: #8d9bff;
+  --am-accent-to: #6a5ae0;
+  --am-ring: #6a5ae0;
+  --am-info-bg: #e5edff;
+  --am-info-fg: #3d68d8;
+  --am-warn-bg: #fff1d6;
+  --am-warn-fg: #b26b00;
+  --am-danger-bg: #ffe9e2;
+  --am-danger-fg: #e5602f;
+  --am-danger-border: #f8c7b2;
+  --am-success-bg: #dff6e8;
+  --am-success-fg: #1f8f52;
+  --am-neutral-bg: #ececef;
+  --am-neutral-fg: #6b6f7b;
+  --am-radius: 14px;
+}
+
+.dark {
+  --am-canvas: #0f1117;
+  --am-surface: #171a22;
+  --am-surface-2: #1d212b;
+  --am-border: #272b36;
+  --am-text: #eceef3;
+  --am-muted: #a0a5b3;
+  --am-subtle: #6f7482;
+  --am-primary: #eceef3;
+  --am-primary-fg: #12141b;
+  --am-nav-active: #eceef3;
+  --am-nav-active-fg: #12141b;
+  --am-info-bg: #1d2a4a;
+  --am-info-fg: #8fb0ff;
+  --am-warn-bg: #3a2c12;
+  --am-warn-fg: #f5c36b;
+  --am-danger-bg: #3a1e17;
+  --am-danger-fg: #ff8f68;
+  --am-danger-border: #5a2c1f;
+  --am-success-bg: #173324;
+  --am-success-fg: #6ad79a;
+  --am-neutral-bg: #262a34;
+  --am-neutral-fg: #a0a5b3;
+}
+
+@theme inline {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: var(--am-canvas);
+  --color-surface: var(--am-surface);
+  --color-surface-2: var(--am-surface-2);
+  --color-line: var(--am-border);
+  --color-fg: var(--am-text);
+  --color-muted: var(--am-muted);
+  --color-subtle: var(--am-subtle);
+  --color-primary: var(--am-primary);
+  --color-primary-fg: var(--am-primary-fg);
+  --color-nav: var(--am-nav-active);
+  --color-nav-fg: var(--am-nav-active-fg);
+  --color-accent: var(--am-ring);
+  --color-info: var(--am-info-fg);
+  --color-info-bg: var(--am-info-bg);
+  --color-warn: var(--am-warn-fg);
+  --color-warn-bg: var(--am-warn-bg);
+  --color-danger: var(--am-danger-fg);
+  --color-danger-bg: var(--am-danger-bg);
+  --color-danger-line: var(--am-danger-border);
+  --color-success: var(--am-success-fg);
+  --color-success-bg: var(--am-success-bg);
+  --color-neutral: var(--am-neutral-fg);
+  --color-neutral-bg: var(--am-neutral-bg);
+  --radius-card: var(--am-radius);
+}
+
+html,
+body {
+  background: var(--am-canvas);
+  color: var(--am-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.icon-tile {
+  background: linear-gradient(135deg, var(--am-accent-from), var(--am-accent-to));
+}
+
+::selection {
+  background: color-mix(in srgb, var(--am-ring) 25%, transparent);
+}
