@@ -27,7 +27,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { type NavItem, Overridable, Slot, useRegistry } from '../extensions/registry'
 import { api, can, formatMoney, type User } from '../lib/api'
 import { useMe, useUser } from '../lib/auth'
@@ -327,7 +327,7 @@ function Topbar({ user, onMenu }: { user: User; onMenu: () => void }) {
           <ChevronDown className="size-4" />
         </Button>
       </div>
-      <Input className="hidden w-52 md:block" icon={<Search className="size-4" />} placeholder="Search" />
+      <GlobalSearch />
       <NotificationBell />
       <div className="relative" ref={menuRef}>
         <button type="button" onClick={() => setMenu((m) => !m)} aria-label="Account menu">
@@ -354,6 +354,81 @@ function Topbar({ user, onMenu }: { user: User; onMenu: () => void }) {
         )}
       </div>
     </header>
+  )
+}
+
+type SearchResult = { type: string; title: string; subtitle?: string; url: string }
+
+/** Topbar search across the user's servers, services, invoices and tickets (plus users for staff). */
+function GlobalSearch() {
+  const navigate = useNavigate()
+  const [q, setQ] = useState('')
+  const [term, setTerm] = useState('')
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const box = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  useDismiss(box, open, close)
+  useEffect(() => {
+    const t = setTimeout(() => setTerm(q.trim()), 200)
+    return () => clearTimeout(t)
+  }, [q])
+  const { data } = useQuery({
+    queryKey: ['search', term],
+    enabled: term.length >= 2,
+    queryFn: () =>
+      api.get<{ data: SearchResult[] }>(`/search?q=${encodeURIComponent(term)}`).then((r) => r.data),
+  })
+  const results = term.length >= 2 ? (data ?? []) : []
+  const go = (r: SearchResult) => {
+    setOpen(false)
+    setQ('')
+    navigate({ to: r.url })
+  }
+  return (
+    <div className="relative hidden w-56 md:block" ref={box}>
+      <Input
+        icon={<Search className="size-4" />}
+        placeholder="Search"
+        aria-label="Search"
+        value={q}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setQ(e.target.value)
+          setOpen(true)
+          setActive(0)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') setActive((a) => Math.min(a + 1, results.length - 1))
+          if (e.key === 'ArrowUp') setActive((a) => Math.max(a - 1, 0))
+          if (e.key === 'Enter' && results[active]) go(results[active]!)
+        }}
+      />
+      {open && term.length >= 2 && (
+        <div className="absolute right-0 z-30 mt-2 w-80 rounded-[12px] border border-line bg-surface p-1.5 shadow-lg">
+          {results.map((r, i) => (
+            <button
+              type="button"
+              key={`${r.type}-${r.url}`}
+              onClick={() => go(r)}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left',
+                i === active ? 'bg-surface-2' : 'hover:bg-surface-2',
+              )}
+            >
+              <span className="w-14 shrink-0 text-[11px] uppercase text-subtle">{r.type}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-medium">{r.title}</span>
+                {r.subtitle && <span className="block truncate text-xs text-muted">{r.subtitle}</span>}
+              </span>
+            </button>
+          ))}
+          {data && results.length === 0 && (
+            <p className="px-3 py-4 text-center text-[13px] text-muted">No results for “{term}”</p>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 

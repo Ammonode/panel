@@ -55,12 +55,3 @@ export function ServersPage() {
     </Card>
   )
 }
-
-export function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <Card>
-      <CardHeader title={title} />
-      <Empty title="Nothing here yet" />
-    </Card>
-  )
-}

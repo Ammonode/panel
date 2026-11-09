@@ -44,13 +44,14 @@ import { ServicePage, ServicesPage } from './routes/billing/services'
 import { CategoryPage, ProductPage, StorePage } from './routes/billing/store'
 import { DashboardPage } from './routes/dashboard'
 import { ExtensionPage } from './routes/extension-page'
+import { HelpPage } from './routes/help'
 import { ConsolePage } from './routes/server/console'
 import { FilesPage } from './routes/server/files'
 import { ServerLayout } from './routes/server/layout'
 import { ActivityPage, BackupsPage, DatabasesPage, SchedulesPage, UsersPage } from './routes/server/manage'
 import { NetworkPage, SettingsPage } from './routes/server/settings'
 import { StartupPage } from './routes/server/startup'
-import { PlaceholderPage, ServersPage } from './routes/servers'
+import { ServersPage } from './routes/servers'
 import { NewTicketPage, TicketPage, TicketsPage } from './routes/tickets'
 
 const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({ component: Outlet })
@@ -78,7 +79,6 @@ const authed = createRoute({
 
 const page = (path: string, component: () => React.ReactNode) =>
   createRoute({ getParentRoute: () => authed, path, component })
-const placeholder = (path: string, title: string) => page(path, () => <PlaceholderPage title={title} />)
 
 const serverRoute = createRoute({
   getParentRoute: () => authed,
@@ -154,7 +154,7 @@ const routeTree = root.addChildren([
     page('/tickets/$id', TicketPage),
     page('/account', AccountPage),
     page('/account/security', SecurityPage),
-    placeholder('/help', 'Help'),
+    page('/help', HelpPage),
     page('/admin', AdminOverviewPage),
     page('/admin/users', AdminUsersPage),
     page('/admin/users/$id', AdminUserPage),
