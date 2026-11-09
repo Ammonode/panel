@@ -15,3 +15,15 @@ export const validate = <T extends ZodType, Target extends keyof ValidationTarge
       throw badRequest('The given data was invalid.', errors)
     }
   })
+
+/**
+ * Keeps only the keys present in the request body. zod applies `.default()`
+ * even inside `.partial()`, which would reset untouched fields on PATCH.
+ */
+export async function onlyProvided<T extends Record<string, unknown>>(
+  c: { req: { json: () => Promise<unknown> } },
+  data: T,
+): Promise<Partial<T>> {
+  const raw = (await c.req.json()) as Record<string, unknown>
+  return Object.fromEntries(Object.entries(data).filter(([k]) => k in raw)) as Partial<T>
+}

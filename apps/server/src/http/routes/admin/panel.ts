@@ -9,7 +9,7 @@ import { fetchCatalogEgg, getEggCatalog } from '../../../services/egg-catalog'
 import { exportEgg, importEgg } from '../../../services/eggs'
 import { clientIp, newIdentifier, newUuid, requirePermission } from '../../middleware/auth'
 import type { AppEnv } from '../../types'
-import { validate } from '../../validate'
+import { onlyProvided, validate } from '../../validate'
 
 const id = (v: string) => {
   const n = Number(v)
@@ -65,7 +65,7 @@ export const adminPanelRoutes = new Hono<AppEnv>()
     async (c) => {
       const [row] = await db
         .update(schema.locations)
-        .set(c.req.valid('json'))
+        .set(await onlyProvided(c, c.req.valid('json')))
         .where(eq(schema.locations.id, id(c.req.param('id'))))
         .returning()
       if (!row) throw notFound('Location')
@@ -119,7 +119,7 @@ export const adminPanelRoutes = new Hono<AppEnv>()
     async (c) => {
       const [row] = await db
         .update(schema.nodes)
-        .set(c.req.valid('json'))
+        .set(await onlyProvided(c, c.req.valid('json')))
         .where(eq(schema.nodes.id, id(c.req.param('id'))))
         .returning()
       if (!row) throw notFound('Node')
