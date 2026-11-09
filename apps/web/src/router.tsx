@@ -18,6 +18,7 @@ import {
 import { AdminAnnouncementsPage } from './routes/admin/content'
 import { AdminEggEditPage } from './routes/admin/egg-edit'
 import { AdminEggsPage } from './routes/admin/eggs'
+import { AdminInvoicePage } from './routes/admin/invoice'
 import { AdminMailPage } from './routes/admin/mail'
 import { AdminNodePage } from './routes/admin/node-edit'
 import { AdminDatabaseHostsPage, AdminLocationsPage, AdminNodesPage } from './routes/admin/nodes'
@@ -35,6 +36,7 @@ import {
   VerifyEmailPage,
 } from './routes/auth'
 import { CartPage } from './routes/billing/cart'
+import { AdminInvoicePrintPage, InvoicePrintPage } from './routes/billing/invoice-print'
 import { CreditsPage, InvoicePage, InvoicesPage } from './routes/billing/invoices'
 import { ServicePage, ServicesPage } from './routes/billing/services'
 import { CategoryPage, ProductPage, StorePage } from './routes/billing/store'
@@ -83,6 +85,17 @@ const serverRoute = createRoute({
 const serverPage = (path: string, component: () => React.ReactNode) =>
   createRoute({ getParentRoute: () => serverRoute, path, component })
 
+// Print pages render without the app chrome but still require a session.
+const printRoot = createRoute({
+  getParentRoute: () => root,
+  id: 'print',
+  component: Outlet,
+  beforeLoad: async ({ context, location }) => {
+    const me = await context.queryClient.fetchQuery(meQuery)
+    if (!me.user) throw redirect({ to: '/login', search: { redirect: location.href } })
+  },
+})
+
 const verifyRoute = createRoute({
   getParentRoute: () => root,
   path: '/verify-email',
@@ -91,6 +104,18 @@ const verifyRoute = createRoute({
 
 const routeTree = root.addChildren([
   verifyRoute,
+  printRoot.addChildren([
+    createRoute({
+      getParentRoute: () => printRoot,
+      path: '/invoices/$id/print',
+      component: InvoicePrintPage,
+    }),
+    createRoute({
+      getParentRoute: () => printRoot,
+      path: '/admin/invoices/$id/print',
+      component: AdminInvoicePrintPage,
+    }),
+  ]),
   guest.addChildren([
     createRoute({ getParentRoute: () => guest, path: '/login', component: LoginPage }),
     createRoute({ getParentRoute: () => guest, path: '/register', component: RegisterPage }),
@@ -145,6 +170,7 @@ const routeTree = root.addChildren([
     page('/admin/coupons', AdminCouponsPage),
     page('/admin/services', AdminServicesPage),
     page('/admin/invoices', AdminInvoicesPage),
+    page('/admin/invoices/$id', AdminInvoicePage),
     page('/admin/tickets', AdminTicketsPage),
     page('/admin/tickets/$id', AdminTicketPage),
     page('/admin/extensions', AdminExtensionsPage),

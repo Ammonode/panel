@@ -4,7 +4,7 @@ import { Button, Field, Input, Toggle } from './ui'
 export type SettingField = {
   key: string
   label: string
-  type: 'text' | 'password' | 'url' | 'email' | 'number' | 'boolean' | 'select'
+  type: 'text' | 'password' | 'url' | 'email' | 'number' | 'boolean' | 'select' | 'textarea'
   description?: string
   default?: unknown
   required?: boolean
@@ -36,6 +36,12 @@ export function SchemaForm({
               <div className="pt-1">
                 <Toggle checked={!!value} onChange={(v) => set(f.key, v)} label={f.label} />
               </div>
+            ) : f.type === 'textarea' ? (
+              <textarea
+                className="h-24 w-full rounded-[10px] border border-line bg-surface p-3 text-sm outline-none focus:border-accent"
+                value={String(value)}
+                onChange={(e) => set(f.key, e.target.value)}
+              />
             ) : f.type === 'select' ? (
               <select
                 className={selectClass}

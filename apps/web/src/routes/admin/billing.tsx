@@ -411,7 +411,13 @@ export function AdminInvoicesPage() {
       <div className="divide-y divide-line border-t border-line">
         {data?.data.map((i) => (
           <div key={i.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-[13.5px]">
-            <span className="w-28 font-medium">{i.number}</span>
+            <Link
+              to="/admin/invoices/$id"
+              params={{ id: String(i.id) }}
+              className="w-28 font-medium hover:underline"
+            >
+              {i.number}
+            </Link>
             <span className="min-w-40 flex-1 text-muted">{i.user.email}</span>
             <span className="text-muted">Due {formatDate(i.dueAt)}</span>
             <span className="w-24 text-right font-medium">{formatMoney(i.total, i.currencyCode)}</span>
@@ -466,6 +472,12 @@ export function AdminInvoicesPage() {
 const billingSettings: SettingField[] = [
   { key: 'app.name', label: 'Company name', type: 'text' },
   { key: 'app.support_email', label: 'Support email', type: 'email', description: 'Shown to customers' },
+  {
+    key: 'billing.company_details',
+    label: 'Company details on invoices',
+    type: 'textarea',
+    description: 'Address, VAT number, registration…',
+  },
   { key: 'auth.require_email_verification', label: 'Require a verified email to order', type: 'boolean' },
   { key: 'tickets.enabled', label: 'Support tickets', type: 'boolean' },
   {

@@ -144,9 +144,19 @@ export function InvoicePage() {
               Issued {formatDate(data.createdAt)} · Due {formatDate(data.dueAt)}
             </p>
           </div>
-          <Pill tone={invoiceTone[data.status as keyof typeof invoiceTone] ?? 'neutral'}>
-            {statusLabel(data.status)}
-          </Pill>
+          <span className="flex items-center gap-2">
+            <a
+              href={`/invoices/${data.id}/print`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-8 items-center rounded-[10px] border border-line px-3 text-[13px] hover:bg-surface-2"
+            >
+              Download PDF
+            </a>
+            <Pill tone={invoiceTone[data.status as keyof typeof invoiceTone] ?? 'neutral'}>
+              {statusLabel(data.status)}
+            </Pill>
+          </span>
         </div>
         <div className="overflow-x-auto px-5">
           <table className="w-full text-[13px]">
