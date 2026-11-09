@@ -1,0 +1,23 @@
+{
+  "name": "ammonode",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '*' dev",
+    "build": "bun run --filter @ammonode/web build",
+    "start": "bun apps/server/src/index.ts",
+    "db:generate": "bun --cwd apps/server drizzle-kit generate",
+    "db:migrate": "bun apps/server/src/cli.ts migrate",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.6"
+  }
+}
