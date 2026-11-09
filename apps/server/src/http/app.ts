@@ -25,6 +25,7 @@ import { clientServerExtraRoutes } from './routes/client-server-extra'
 import { extensionAssetRoutes } from './routes/extension-assets'
 import { accountOAuthRoutes, adminOAuthRoutes, oauthRoutes } from './routes/oauth'
 import { remoteRoutes } from './routes/remote'
+import { searchRoutes } from './routes/search'
 import { storeRoutes } from './routes/store'
 import { adminTicketRoutes, clientTicketRoutes } from './routes/tickets'
 import type { AppEnv } from './types'
@@ -58,6 +59,7 @@ export const api = new Hono<AppEnv>()
   .route('/client/servers', clientServerExtraRoutes)
   .route('/client', billingRoutes)
   .route('/store', storeRoutes)
+  .route('/search', searchRoutes)
   .route('/announcements', announcementRoutes)
   .route('/affiliates', affiliateRoutes)
   .route('/client/tickets', clientTicketRoutes)
