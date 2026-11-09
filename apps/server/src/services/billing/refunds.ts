@@ -35,7 +35,7 @@ export async function refundTransaction(
   const tx = await db.query.invoiceTransactions.findFirst({
     where: eq(schema.invoiceTransactions.id, transactionId),
   })
-  if (!tx || tx.status !== 'succeeded' || toCents(tx.amount) <= 0)
+  if (tx?.status !== 'succeeded' || toCents(tx.amount) <= 0)
     throw new HttpError(404, 'Payment not found', 'not_found')
   const invoice = (await db.query.invoices.findFirst({ where: eq(schema.invoices.id, tx.invoiceId) }))!
   const cents = toCents(amount)

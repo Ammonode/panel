@@ -1,5 +1,6 @@
 import { and, eq, isNull, or } from 'drizzle-orm'
 import { Hono } from 'hono'
+import { getCookie } from 'hono/cookie'
 import { z } from 'zod'
 import { db, schema } from '../../db'
 import { emit } from '../../extensions/registry'
@@ -8,6 +9,7 @@ import { decrypt, hashPassword, sha256, verifyPassword } from '../../lib/crypto'
 import { HttpError } from '../../lib/errors'
 import { getSetting } from '../../lib/settings'
 import { verifyTotp } from '../../lib/totp'
+import { attachReferral, REF_COOKIE } from '../../services/affiliates'
 import { consume, sendPasswordReset, sendVerification } from '../../services/auth-tokens'
 import { clientIp, createSession, destroySession, newUuid } from '../middleware/auth'
 import { serializeUser } from '../serializers'
@@ -66,6 +68,7 @@ export const authRoutes = new Hono<AppEnv>()
       await createSession(c, user!)
       await logActivity({ event: 'auth:register', actorId: user!.id, ip: clientIp(c) })
       await sendVerification(user!.id)
+      await attachReferral(user!.id, getCookie(c, REF_COOKIE))
       await emit('user.created', { userId: user!.id })
       return c.json({ user: serializeUser(user!) }, 201)
     },

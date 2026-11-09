@@ -14,6 +14,7 @@ import { adminDatabaseHostRoutes, adminPanelRoutes } from './routes/admin/panel'
 import { adminServerEditRoutes } from './routes/admin/server-edit'
 import { adminServerRoutes } from './routes/admin/servers'
 import { adminUserRoutes, impersonationRoutes } from './routes/admin/users'
+import { affiliateRoutes } from './routes/affiliates'
 import { adminAnnouncementRoutes, announcementRoutes } from './routes/announcements'
 import { authRoutes } from './routes/auth'
 import { billingRoutes } from './routes/billing'
@@ -52,6 +53,7 @@ export const api = new Hono<AppEnv>()
   .route('/client', billingRoutes)
   .route('/store', storeRoutes)
   .route('/announcements', announcementRoutes)
+  .route('/affiliates', affiliateRoutes)
   .route('/client/tickets', clientTicketRoutes)
   .route('/admin', adminPanelRoutes)
   .route('/admin', adminDatabaseHostRoutes)

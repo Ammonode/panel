@@ -162,6 +162,8 @@ async function processPaidInvoice(invoiceId: number) {
   await emit('invoice.paid', { invoiceId, userId: invoice.userId })
   const { invoicePaid } = await import('../notify')
   await invoicePaid(invoiceId)
+  const { rewardAffiliate } = await import('../affiliates')
+  await rewardAffiliate(invoiceId).catch((e) => console.error('affiliate reward failed:', e))
 }
 
 export async function addCredits(userId: number, currency: string, cents: number, tx: Executor = db) {
