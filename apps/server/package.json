@@ -7,12 +7,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ammonode/sdk": "workspace:*",
     "@hono/zod-validator": "^0.9.1",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.17",
+    "mysql2": "^3.24.6",
     "postgres": "^4.1.0",
-    "zod": "^4.6.7",
-    "@ammonode/sdk": "workspace:*"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",

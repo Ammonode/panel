@@ -5,6 +5,7 @@ import { db, schema } from '../../../db'
 import { logActivity } from '../../../lib/activity'
 import { encrypt, randomString } from '../../../lib/crypto'
 import { HttpError, notFound } from '../../../lib/errors'
+import { testHost } from '../../../services/databases'
 import { fetchCatalogEgg, getEggCatalog } from '../../../services/egg-catalog'
 import { exportEgg, importEgg } from '../../../services/eggs'
 import { clientIp, newIdentifier, newUuid, requirePermission } from '../../middleware/auth'
@@ -296,4 +297,54 @@ export const adminPanelRoutes = new Hono<AppEnv>()
     const imported = await db.select({ url: schema.eggs.sourceUrl, id: schema.eggs.id }).from(schema.eggs)
     const map = new Map(imported.filter((e) => e.url).map((e) => [e.url, e.id]))
     return c.json({ data: eggs.map((e) => ({ ...e, importedEggId: map.get(e.rawUrl) ?? null })) })
+  })
+
+const dbHostBody = z.object({
+  name: z.string().min(1).max(191),
+  host: z.string().min(1).max(191),
+  port: z.number().int().min(1).max(65535).default(3306),
+  username: z.string().min(1).max(191),
+  password: z.string().min(1).max(512),
+  maxDatabases: z.number().int().min(1).nullish(),
+  nodeId: z.number().int().nullish(),
+})
+
+export const adminDatabaseHostRoutes = new Hono<AppEnv>()
+  .get('/database-hosts', requirePermission('admin.databases.manage'), async (c) => {
+    const hosts = await db.query.databaseHosts.findMany({ orderBy: asc(schema.databaseHosts.id) })
+    const usage = await db
+      .select({ hostId: schema.serverDatabases.databaseHostId, n: count() })
+      .from(schema.serverDatabases)
+      .groupBy(schema.serverDatabases.databaseHostId)
+    return c.json({
+      data: hosts.map(({ password: _, ...h }) => ({
+        ...h,
+        databases: usage.find((u) => u.hostId === h.id)?.n ?? 0,
+      })),
+    })
+  })
+  .post(
+    '/database-hosts',
+    requirePermission('admin.databases.manage'),
+    validate('json', dbHostBody),
+    async (c) => {
+      const body = c.req.valid('json')
+      await testHost(body)
+      const [row] = await db
+        .insert(schema.databaseHosts)
+        .values({ ...body, password: encrypt(body.password) })
+        .returning()
+      const { password: _, ...host } = row!
+      return c.json({ data: host }, 201)
+    },
+  )
+  .delete('/database-hosts/:id', requirePermission('admin.databases.manage'), async (c) => {
+    const hid = id(c.req.param('id'))
+    const [used] = await db
+      .select({ n: count() })
+      .from(schema.serverDatabases)
+      .where(eq(schema.serverDatabases.databaseHostId, hid))
+    if (used!.n > 0) throw new HttpError(409, 'This host still has databases', 'in_use')
+    await db.delete(schema.databaseHosts).where(eq(schema.databaseHosts.id, hid))
+    return c.json({ ok: true })
   })

@@ -220,6 +220,18 @@ export async function setServerSuspended(id: number, suspended: boolean) {
 /** Deletes a server from the daemon and the database, freeing its allocations. */
 export async function deleteServer(id: number, force = false) {
   const { server, node } = await loadServer(id)
+  // Databases and backup archives live outside the server folder, remove them too.
+  const { deleteDatabase } = await import('./databases')
+  for (const database of await db.query.serverDatabases.findMany({
+    where: eq(schema.serverDatabases.serverId, server.id),
+  })) {
+    await deleteDatabase(database).catch((e) => {
+      if (!force) throw e
+    })
+  }
+  for (const backup of await db.query.backups.findMany({ where: eq(schema.backups.serverId, server.id) })) {
+    await daemonRequest(node, 'DELETE', `/api/servers/${server.uuid}/backup/${backup.uuid}`).catch(() => {})
+  }
   await daemonRequest(node, 'DELETE', `/api/servers/${server.uuid}`).catch((e) => {
     if (!force) throw e
   })
