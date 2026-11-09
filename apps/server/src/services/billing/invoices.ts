@@ -136,7 +136,8 @@ export async function markInvoicePaid(
 async function processPaidInvoice(invoiceId: number) {
   const invoice = (await db.query.invoices.findFirst({ where: eq(schema.invoices.id, invoiceId) }))!
   const items = await db.query.invoiceItems.findMany({ where: eq(schema.invoiceItems.invoiceId, invoiceId) })
-  const { activateOrRenew, applyUpgrade } = await import('./lifecycle')
+  const { activateOrRenew } = await import('./lifecycle')
+  const { applyUpgrade } = await import('./upgrades')
   for (const item of items) {
     try {
       if (item.referenceType === 'service' && item.referenceId) await activateOrRenew(item.referenceId)

@@ -155,26 +155,3 @@ export async function terminateService(serviceId: number, reason = 'overdue') {
   })
   await emit('service.terminated', { serviceId: service.id, userId: service.userId, reason })
 }
-
-export async function applyUpgrade(upgradeId: number) {
-  const upgrade = await db.query.serviceUpgrades.findFirst({
-    where: eq(schema.serviceUpgrades.id, upgradeId),
-  })
-  if (upgrade?.status !== 'pending') return
-  const service = (await db.query.services.findFirst({ where: eq(schema.services.id, upgrade.serviceId) }))!
-  const { pricePlans } = await import('./pricing')
-  const plan = (await db.query.plans.findFirst({ where: eq(schema.plans.id, upgrade.planId) }))!
-  const [priced] = await pricePlans([plan], service.currencyCode)
-  await setStatus(service.id, {
-    productId: upgrade.productId,
-    planId: upgrade.planId,
-    price: ((priced?.price ?? 0) / 100).toFixed(2),
-  })
-  const updated = (await db.query.services.findFirst({ where: eq(schema.services.id, service.id) }))!
-  const p = await provisionerFor(updated)
-  if (p?.provisioner.upgrade) await p.provisioner.upgrade(await serviceContext(updated))
-  await db
-    .update(schema.serviceUpgrades)
-    .set({ status: 'completed' })
-    .where(eq(schema.serviceUpgrades.id, upgradeId))
-}

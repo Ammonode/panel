@@ -12,6 +12,7 @@ import { createInvoice, invoiceWithItems, payWithCredits } from '../../services/
 import { serviceContext } from '../../services/billing/lifecycle'
 import { describePeriod, fromCents, toCents } from '../../services/billing/money'
 import { getCurrency } from '../../services/billing/pricing'
+import { requestUpgrade, upgradeOptions } from '../../services/billing/upgrades'
 import { clientIp, requireAuth } from '../middleware/auth'
 import type { AppEnv } from '../types'
 import { validate } from '../validate'
@@ -187,6 +188,32 @@ export const billingRoutes = new Hono<AppEnv>()
         await terminateService(service.id, 'cancelled by customer')
       }
       return c.json({ ok: true })
+    },
+  )
+
+  .get('/services/:id/upgrades', async (c) => {
+    const service = await db.query.services.findFirst({
+      where: and(
+        eq(schema.services.id, intId(c.req.param('id'))),
+        eq(schema.services.userId, c.get('user')!.id),
+      ),
+    })
+    if (!service) throw notFound('Service')
+    return c.json({ data: await upgradeOptions(service) })
+  })
+  .post(
+    '/services/:id/upgrade',
+    validate('json', z.object({ productId: z.number().int(), planId: z.number().int() })),
+    async (c) => {
+      const service = await db.query.services.findFirst({
+        where: and(
+          eq(schema.services.id, intId(c.req.param('id'))),
+          eq(schema.services.userId, c.get('user')!.id),
+        ),
+      })
+      if (!service) throw notFound('Service')
+      const { productId, planId } = c.req.valid('json')
+      return c.json({ data: await requestUpgrade(service, productId, planId) })
     },
   )
 
