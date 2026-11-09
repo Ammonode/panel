@@ -48,6 +48,23 @@ export function AdminEggsPage() {
     },
   })
 
+  // Eggs exported from Pterodactyl or Ammonode (PTDL_v1 / PTDL_v2 JSON).
+  const importFile = useMutation({
+    mutationFn: async ({ nest, file }: { nest: number; file: File }) => {
+      let egg: unknown
+      try {
+        egg = JSON.parse(await file.text())
+      } catch {
+        throw new Error(`${file.name} is not a valid egg file`)
+      }
+      return api.post(`/admin/nests/${nest}/import`, { egg })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'nests'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'egg-catalog'] })
+    },
+  })
+
   const filtered = useMemo(() => {
     const term = q.toLowerCase()
     return (catalog.data?.data ?? [])
@@ -60,12 +77,32 @@ export function AdminEggsPage() {
       <Card>
         <CardHeader title="Nests" subtitle="Eggs grouped by nest, exactly like Pterodactyl." />
         <div className="space-y-3 px-5 pb-5">
+          {importFile.error && (
+            <p className="rounded-lg bg-danger-bg px-3 py-2 text-[13px] text-danger">
+              {importFile.error.message}
+            </p>
+          )}
           {nests.data?.data.map((n) => (
             <div key={n.id} className="rounded-[12px] border border-line bg-surface-2 p-4">
               <div className="flex items-center justify-between">
                 <p className="font-medium">{n.name}</p>
                 <span className="flex items-center gap-3 text-xs text-muted">
                   {n.eggs.length} eggs
+                  <label className="cursor-pointer font-medium text-fg hover:underline">
+                    {importFile.isPending && importFile.variables?.nest === n.id
+                      ? 'Importing…'
+                      : 'Import file'}
+                    <input
+                      type="file"
+                      accept=".json,application/json"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        e.target.value = ''
+                        if (file) importFile.mutate({ nest: n.id, file })
+                      }}
+                    />
+                  </label>
                   <a href={`/admin/eggs/new?nest=${n.id}`} className="font-medium text-fg hover:underline">
                     + New egg
                   </a>
