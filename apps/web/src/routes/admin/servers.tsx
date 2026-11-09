@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { ExternalLink, Plus, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, CardHeader, cn, Empty, Field, Input, Modal, Pill, Toggle } from '../../components/ui'
-import { api } from '../../lib/api'
+import { api, formatDate } from '../../lib/api'
 
 const selectClass = 'h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-sm'
 
@@ -789,6 +789,9 @@ function EditServer({ id }: { id: string }) {
           {action.error && !confirm && (
             <p className="text-[13px] text-danger md:col-span-3">{action.error.message}</p>
           )}
+          <div className="md:col-span-3">
+            <TransferCard serverId={s.id} currentNodeId={s.node.id} status={s.status} onDone={refresh} />
+          </div>
         </div>
       )}
 
@@ -821,6 +824,136 @@ function EditServer({ id }: { id: string }) {
         {action.error && <p className="mt-2 text-danger">{action.error.message}</p>}
       </Modal>
     </>
+  )
+}
+
+type Transfer = {
+  id: number
+  successful: boolean | null
+  error: string | null
+  oldNodeId: number
+  newNodeId: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** Move the server to another node. */
+function TransferCard({
+  serverId,
+  currentNodeId,
+  status,
+  onDone,
+}: {
+  serverId: number
+  currentNodeId: number
+  status: string | null
+  onDone: () => void
+}) {
+  const nodes = useQuery({
+    queryKey: ['admin', 'nodes'],
+    queryFn: () => api.get<{ data: { id: number; name: string }[] }>('/admin/nodes'),
+  })
+  const last = useQuery({
+    queryKey: ['admin', 'transfer', serverId],
+    queryFn: () =>
+      api.get<{ data: Transfer | null }>(`/admin/servers/${serverId}/transfer`).then((r) => r.data),
+    refetchInterval: (q) => (q.state.data && q.state.data.successful === null ? 3000 : false),
+  })
+  const targets = nodes.data?.data.filter((n) => n.id !== currentNodeId) ?? []
+  const [nodeId, setNodeId] = useState(0)
+  const target = nodeId || targets[0]?.id || 0
+  const ports = useQuery({
+    queryKey: ['admin', 'allocations', target],
+    enabled: !!target,
+    queryFn: () => api.get<{ data: Allocation[] }>(`/admin/nodes/${target}/allocations`),
+  })
+  const free = ports.data?.data.filter((a) => !a.serverId) ?? []
+  const [port, setPort] = useState(0)
+  const start = useMutation({
+    mutationFn: () =>
+      api.post(`/admin/servers/${serverId}/transfer`, { nodeId: target, allocationId: port || free[0]?.id }),
+    onSuccess: () => {
+      last.refetch()
+      onDone()
+    },
+  })
+  const t = last.data
+  const nodeName = (id: number) => nodes.data?.data.find((n) => n.id === id)?.name ?? `#${id}`
+  // Refresh the server once when a running transfer finishes (not on every render).
+  const seen = useRef('')
+  useEffect(() => {
+    if (!t) return
+    const key = `${t.id}:${t.successful}`
+    if (seen.current && seen.current !== key && t.successful !== null) onDone()
+    seen.current = key
+  }, [t, onDone])
+  return (
+    <Card>
+      <CardHeader
+        title="Transfer to another node"
+        subtitle="The server is stopped, its files are copied to the new node, and it switches over once the copy is confirmed."
+      />
+      <div className="flex flex-wrap items-end gap-3 px-5 pb-5">
+        {targets.length === 0 ? (
+          <p className="text-[13px] text-muted">Add another node to transfer servers.</p>
+        ) : (
+          <>
+            <Field label="Target node">
+              <select
+                className={`${selectClass} w-48`}
+                value={target}
+                onChange={(e) => {
+                  setNodeId(Number(e.target.value))
+                  setPort(0)
+                }}
+              >
+                {targets.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="New primary port">
+              <select
+                className={`${selectClass} w-48`}
+                value={port || free[0]?.id || ''}
+                onChange={(e) => setPort(Number(e.target.value))}
+              >
+                {free.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.ipAlias ?? a.ip}:{a.port}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Button
+              loading={start.isPending}
+              disabled={!free.length || status === 'transferring'}
+              onClick={() => start.mutate()}
+            >
+              Start transfer
+            </Button>
+          </>
+        )}
+        {start.error && <p className="w-full text-[13px] text-danger">{start.error.message}</p>}
+        {t && (
+          <p className="w-full text-[13px]">
+            {t.successful === null ? (
+              <span className="text-warn">
+                Transferring from {nodeName(t.oldNodeId)} to {nodeName(t.newNodeId)}…
+              </span>
+            ) : t.successful ? (
+              <span className="text-success">
+                Last transfer to {nodeName(t.newNodeId)} finished {formatDate(t.updatedAt, true)}.
+              </span>
+            ) : (
+              <span className="text-danger">Last transfer failed: {t.error}</span>
+            )}
+          </p>
+        )}
+      </div>
+    </Card>
   )
 }
 
