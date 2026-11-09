@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AlertTriangle, CreditCard, LifeBuoy, Package, ReceiptText, Server, Users } from 'lucide-react'
 import { Card, CardHeader, Empty, IconTile, Pill } from '../../components/ui'
+import { Slot } from '../../extensions/registry'
 import { api, formatDate, formatMoney } from '../../lib/api'
 
 type Overview = {
@@ -188,6 +189,7 @@ export function AdminOverviewPage() {
           </div>
         </Card>
       </div>
+      <Slot name="admin.dashboard" />
     </>
   )
 }
