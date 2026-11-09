@@ -42,6 +42,7 @@ import { CreditsPage, InvoicePage, InvoicesPage } from './routes/billing/invoice
 import { ServicePage, ServicesPage } from './routes/billing/services'
 import { CategoryPage, ProductPage, StorePage } from './routes/billing/store'
 import { DashboardPage } from './routes/dashboard'
+import { ExtensionPage } from './routes/extension-page'
 import { ConsolePage } from './routes/server/console'
 import { FilesPage } from './routes/server/files'
 import { ServerLayout } from './routes/server/layout'
@@ -180,6 +181,8 @@ const routeTree = root.addChildren([
     page('/admin/announcements', AdminAnnouncementsPage),
     page('/announcements', AnnouncementsPage),
     page('/affiliate', AffiliatePage),
+    page('/x/$', () => <ExtensionPage area="client" />),
+    page('/admin/x/$', () => <ExtensionPage area="admin" />),
   ]),
 ])
 

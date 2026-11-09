@@ -186,7 +186,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
         active ? 'bg-nav text-nav-fg' : 'text-fg hover:bg-surface',
       )}
     >
-      {Icon && <Icon className="size-[18px] stroke-[1.6]" />}
+      {Icon ? <Icon className="size-[18px] stroke-[1.6]" /> : <span className="size-[18px]" aria-hidden />}
       {item.label}
     </Link>
   )
