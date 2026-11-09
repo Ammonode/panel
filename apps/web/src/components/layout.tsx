@@ -18,7 +18,9 @@ import {
   Server,
   Settings,
   ShieldCheck,
+  ShoppingBag,
   SlidersHorizontal,
+  Ticket,
   Users,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
@@ -33,6 +35,7 @@ const clientNav: NavItem[] = [
   { id: 'dashboard', label: 'Control Panel', to: '/', icon: LayoutGrid, area: 'client' },
   { id: 'servers', label: 'Servers', to: '/servers', icon: Gamepad2, area: 'client' },
   { id: 'services', label: 'Services', to: '/services', icon: Package, area: 'client' },
+  { id: 'store', label: 'Store', to: '/store', icon: ShoppingBag, area: 'client' },
   { id: 'invoices', label: 'Billing', to: '/invoices', icon: CreditCard, area: 'client' },
   { id: 'security', label: 'Security', to: '/account/security', icon: ShieldCheck, area: 'client' },
   { id: 'support', label: 'Support', to: '/tickets', icon: LifeBuoy, area: 'client' },
@@ -94,6 +97,22 @@ const adminNav: NavItem[] = [
     icon: Package,
     area: 'admin',
     permission: 'admin.products.manage',
+  },
+  {
+    id: 'admin-services',
+    label: 'Services',
+    to: '/admin/services',
+    icon: Package,
+    area: 'admin',
+    permission: 'admin.orders.view',
+  },
+  {
+    id: 'admin-coupons',
+    label: 'Coupons',
+    to: '/admin/coupons',
+    icon: Ticket,
+    area: 'admin',
+    permission: 'admin.coupons.manage',
   },
   {
     id: 'admin-invoices',

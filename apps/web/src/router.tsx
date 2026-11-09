@@ -8,9 +8,21 @@ import {
 } from '@tanstack/react-router'
 import { AppLayout } from './components/layout'
 import { meQuery } from './lib/auth'
+import {
+  AdminCouponsPage,
+  AdminExtensionsPage,
+  AdminInvoicesPage,
+  AdminServicesPage,
+  AdminSettingsPage,
+} from './routes/admin/billing'
 import { AdminEggsPage } from './routes/admin/eggs'
 import { AdminLocationsPage, AdminNodesPage } from './routes/admin/nodes'
+import { AdminConfigOptionsPage, AdminProductEditPage, AdminProductsPage } from './routes/admin/products'
 import { LoginPage, RegisterPage } from './routes/auth'
+import { CartPage } from './routes/billing/cart'
+import { CreditsPage, InvoicePage, InvoicesPage } from './routes/billing/invoices'
+import { ServicePage, ServicesPage } from './routes/billing/services'
+import { CategoryPage, ProductPage, StorePage } from './routes/billing/store'
 import { DashboardPage } from './routes/dashboard'
 import { ConsolePage } from './routes/server/console'
 import { FilesPage } from './routes/server/files'
@@ -69,9 +81,15 @@ const routeTree = root.addChildren([
       serverPage('/network', NetworkPage),
       serverPage('/settings', SettingsPage),
     ]),
-    placeholder('/services', 'Services'),
-    placeholder('/invoices', 'Billing'),
-    placeholder('/credits', 'Top up credit'),
+    page('/store', StorePage),
+    page('/store/$category', CategoryPage),
+    page('/store/product/$slug', ProductPage),
+    page('/cart', CartPage),
+    page('/services', ServicesPage),
+    page('/services/$id', ServicePage),
+    page('/invoices', InvoicesPage),
+    page('/invoices/$id', InvoicePage),
+    page('/credits', CreditsPage),
     placeholder('/tickets', 'Support'),
     placeholder('/account', 'Account'),
     placeholder('/account/security', 'Security'),
@@ -82,11 +100,15 @@ const routeTree = root.addChildren([
     page('/admin/nodes', AdminNodesPage),
     page('/admin/locations', AdminLocationsPage),
     page('/admin/eggs', AdminEggsPage),
-    placeholder('/admin/products', 'Products'),
-    placeholder('/admin/invoices', 'Invoices'),
+    page('/admin/products', AdminProductsPage),
+    page('/admin/products/$id', AdminProductEditPage),
+    page('/admin/config-options', AdminConfigOptionsPage),
+    page('/admin/coupons', AdminCouponsPage),
+    page('/admin/services', AdminServicesPage),
+    page('/admin/invoices', AdminInvoicesPage),
     placeholder('/admin/tickets', 'Tickets'),
-    placeholder('/admin/extensions', 'Extensions'),
-    placeholder('/admin/settings', 'Settings'),
+    page('/admin/extensions', AdminExtensionsPage),
+    page('/admin/settings', AdminSettingsPage),
   ]),
 ])
 
