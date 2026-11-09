@@ -42,6 +42,7 @@ type Product = {
   serverExtension: string | null
   serverSettings: Record<string, unknown>
   plans: ApiPlan[]
+  upgradeIds?: number[]
 }
 type Provisioner = { id: string; name: string; fields: SettingField[] }
 
@@ -216,6 +217,11 @@ export function AdminProductEditPage() {
     serverSettings: {} as Record<string, unknown>,
   })
   const [plans, setPlans] = useState<PlanForm[]>([])
+  const [upgradeIds, setUpgradeIds] = useState<number[]>([])
+  const allProducts = useQuery({
+    queryKey: ['admin', 'products'],
+    queryFn: () => api.get<{ data: Product[] }>('/admin/products'),
+  })
   const [slugTouched, setSlugTouched] = useState(false)
   const defaultCurrency = currencies.data?.find((c) => c.isDefault)?.code ?? 'USD'
 
@@ -239,6 +245,7 @@ export function AdminProductEditPage() {
       serverSettings: p.serverSettings,
     })
     setPlans(toPlanForms(p.plans))
+    setUpgradeIds(p.upgradeIds ?? [])
     setSlugTouched(true)
   }, [existing.data, isNew, categories.data, defaultCurrency])
 
@@ -251,6 +258,7 @@ export function AdminProductEditPage() {
         perUserLimit: form.perUserLimit === '' ? null : Number(form.perUserLimit),
         serverExtension: form.serverExtension || null,
         plans: cleanPlans(plans),
+        upgradeIds,
       }
       return isNew ? api.post('/admin/products', body) : api.put(`/admin/products/${id}`, body)
     },
@@ -355,6 +363,36 @@ export function AdminProductEditPage() {
             onChange={setPlans}
             currencies={currencies.data?.map((c) => c.code) ?? ['USD']}
           />
+        </div>
+      </Card>
+      <Card>
+        <CardHeader
+          title="Upgrade paths"
+          subtitle="Products customers can switch this service to. They pay the prorated difference; downgrades apply right away."
+        />
+        <div className="flex flex-wrap gap-2 px-5 pb-5">
+          {allProducts.data?.data
+            .filter((p) => String(p.id) !== id)
+            .map((p) => (
+              <label
+                key={p.id}
+                className="flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-[13px]"
+              >
+                <input
+                  type="checkbox"
+                  checked={upgradeIds.includes(p.id)}
+                  onChange={(e) =>
+                    setUpgradeIds(
+                      e.target.checked ? [...upgradeIds, p.id] : upgradeIds.filter((x) => x !== p.id),
+                    )
+                  }
+                />
+                {p.name}
+              </label>
+            ))}
+          {allProducts.data?.data.length === 1 && (
+            <p className="text-[13px] text-muted">Create another product to offer upgrades.</p>
+          )}
         </div>
       </Card>
       <Card>

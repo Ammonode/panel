@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { ExternalLink, Package } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Card, CardHeader, Empty, Field, IconTile, Input, Modal, Pill } from '../../components/ui'
@@ -81,6 +81,79 @@ export function ServicesPage() {
           </Link>
         </Empty>
       )}
+    </Card>
+  )
+}
+
+type UpgradeOption = {
+  productId: number
+  name: string
+  description: string | null
+  planId: number
+  plan: string
+  price: string
+  dueNow: string
+  downgrade: boolean
+}
+
+function UpgradeCard({ serviceId }: { serviceId: number }) {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['upgrades', serviceId],
+    queryFn: () =>
+      api.get<{ data: UpgradeOption[] }>(`/client/services/${serviceId}/upgrades`).then((r) => r.data),
+  })
+  const go = useMutation({
+    mutationFn: (o: UpgradeOption) =>
+      api.post<{ data: { applied: boolean; invoiceId: number | null } }>(
+        `/client/services/${serviceId}/upgrade`,
+        { productId: o.productId, planId: o.planId },
+      ),
+    onSuccess: ({ data: r }) => {
+      if (r.invoiceId) navigate({ to: '/invoices/$id', params: { id: String(r.invoiceId) } })
+      else {
+        qc.invalidateQueries({ queryKey: ['service', String(serviceId)] })
+        qc.invalidateQueries({ queryKey: ['upgrades', serviceId] })
+      }
+    },
+  })
+  if (!data?.length) return null
+  return (
+    <Card>
+      <CardHeader
+        title="Change plan"
+        subtitle="You only pay the difference for the rest of this billing period."
+      />
+      <div className="space-y-2 px-5 pb-5">
+        {data.map((o) => (
+          <div
+            key={`${o.productId}-${o.planId}`}
+            className="rounded-[12px] border border-line bg-surface-2 p-3 text-[13px]"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">{o.name}</span>
+              <span className="text-muted">
+                {formatMoney(o.price)} / {o.plan.toLowerCase()}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-muted">
+                {o.downgrade ? 'Applies now, no refund' : `Pay ${formatMoney(o.dueNow)} now`}
+              </span>
+              <Button
+                size="sm"
+                variant={o.downgrade ? 'outline' : 'primary'}
+                loading={go.isPending && go.variables === o}
+                onClick={() => go.mutate(o)}
+              >
+                {o.downgrade ? 'Downgrade' : 'Upgrade'}
+              </Button>
+            </div>
+          </div>
+        ))}
+        {go.error && <p className="text-[13px] text-danger">{go.error.message}</p>}
+      </div>
     </Card>
   )
 }
@@ -189,25 +262,28 @@ export function ServicePage() {
           </div>
         </Card>
       </div>
-      <Card className="self-start">
-        <CardHeader title="Cancellation" />
-        <div className="px-5 pb-5 text-[13px]">
-          {data.cancellation ? (
-            <p className="text-muted">
-              Cancellation requested {formatDate(data.cancellation.createdAt)}
-              {data.cancellation.type === 'end_of_period' && data.expiresAt
-                ? `. The service ends on ${formatDate(data.expiresAt)}.`
-                : '.'}
-            </p>
-          ) : data.status === 'cancelled' ? (
-            <p className="text-muted">This service has been cancelled.</p>
-          ) : (
-            <Button variant="outline" onClick={() => setCancelOpen(true)}>
-              Request cancellation
-            </Button>
-          )}
-        </div>
-      </Card>
+      <div className="space-y-4 self-start">
+        <UpgradeCard serviceId={data.id} />
+        <Card>
+          <CardHeader title="Cancellation" />
+          <div className="px-5 pb-5 text-[13px]">
+            {data.cancellation ? (
+              <p className="text-muted">
+                Cancellation requested {formatDate(data.cancellation.createdAt)}
+                {data.cancellation.type === 'end_of_period' && data.expiresAt
+                  ? `. The service ends on ${formatDate(data.expiresAt)}.`
+                  : '.'}
+              </p>
+            ) : data.status === 'cancelled' ? (
+              <p className="text-muted">This service has been cancelled.</p>
+            ) : (
+              <Button variant="outline" onClick={() => setCancelOpen(true)}>
+                Request cancellation
+              </Button>
+            )}
+          </div>
+        </Card>
+      </div>
       <Modal
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
