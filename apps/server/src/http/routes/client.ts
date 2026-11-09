@@ -1,6 +1,7 @@
 import { and, count, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db, schema } from '../../db'
+import { daemonRequest } from '../../services/daemon'
 import { requireAuth } from '../middleware/auth'
 import type { AppEnv } from '../types'
 
@@ -38,8 +39,41 @@ export const clientRoutes = new Hono<AppEnv>()
       .groupBy(schema.invoices.id)
       .orderBy(desc(schema.invoices.dueAt))
       .limit(10)
+    // Live usage across the user's own servers, read from the nodes (best effort, 2s budget).
+    const owned = await db.query.servers.findMany({ where: eq(schema.servers.ownerId, uid), limit: 25 })
+    const nodes = owned.length
+      ? await db.query.nodes.findMany({
+          where: inArray(schema.nodes.id, [...new Set(owned.map((s) => s.nodeId))]),
+        })
+      : []
+    const live = await Promise.all(
+      owned.map(async (s) => {
+        const node = nodes.find((n) => n.id === s.nodeId)
+        if (!node) return null
+        return Promise.race([
+          daemonRequest<{ utilization: { memory_bytes: number; disk_bytes: number } }>(
+            node,
+            'GET',
+            `/api/servers/${s.uuid}`,
+          ).catch(() => null),
+          new Promise<null>((r) => setTimeout(() => r(null), 2000)),
+        ])
+      }),
+    )
+    const mib = 1024 * 1024
+    const usage = {
+      memory: {
+        used: Math.round(live.reduce((t, l) => t + (l?.utilization?.memory_bytes ?? 0), 0) / mib),
+        total: owned.reduce((t, s) => t + s.memory, 0),
+      },
+      disk: {
+        used: Math.round(live.reduce((t, l) => t + (l?.utilization?.disk_bytes ?? 0), 0) / mib),
+        total: owned.reduce((t, s) => t + s.disk, 0),
+      },
+    }
     return c.json({
       stats: { servers: servers!.n, services: services!.n, invoicesDue: invoices.length },
+      usage,
       tickets,
       invoices,
     })

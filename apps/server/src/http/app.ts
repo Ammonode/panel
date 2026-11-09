@@ -7,11 +7,13 @@ import { getSettings } from '../lib/settings'
 import { authenticate } from './middleware/auth'
 import { accountRoutes } from './routes/account'
 import { adminBillingRoutes } from './routes/admin/billing'
+import { adminBrandingRoutes, mediaRoutes } from './routes/admin/branding'
 import { adminMailRoutes } from './routes/admin/mail'
 import { adminDatabaseHostRoutes, adminPanelRoutes } from './routes/admin/panel'
 import { adminServerEditRoutes } from './routes/admin/server-edit'
 import { adminServerRoutes } from './routes/admin/servers'
 import { adminUserRoutes, impersonationRoutes } from './routes/admin/users'
+import { adminAnnouncementRoutes, announcementRoutes } from './routes/announcements'
 import { authRoutes } from './routes/auth'
 import { billingRoutes } from './routes/billing'
 import { clientRoutes } from './routes/client'
@@ -34,6 +36,9 @@ export const api = new Hono<AppEnv>()
         'auth.registration',
         'billing.currency',
         'tickets.enabled',
+        'app.support_email',
+        'billing.credits_enabled',
+        'affiliates.enabled',
       ]),
     ),
   )
@@ -45,6 +50,7 @@ export const api = new Hono<AppEnv>()
   .route('/client/servers', clientServerExtraRoutes)
   .route('/client', billingRoutes)
   .route('/store', storeRoutes)
+  .route('/announcements', announcementRoutes)
   .route('/client/tickets', clientTicketRoutes)
   .route('/admin', adminPanelRoutes)
   .route('/admin', adminDatabaseHostRoutes)
@@ -54,6 +60,8 @@ export const api = new Hono<AppEnv>()
   .route('/admin', adminBillingRoutes)
   .route('/admin', adminMailRoutes)
   .route('/admin', adminTicketRoutes)
+  .route('/admin', adminAnnouncementRoutes)
+  .route('/admin', adminBrandingRoutes)
 
 export type Api = typeof api
 
@@ -88,6 +96,7 @@ export function createApp() {
   // Daemon endpoints use node tokens, not sessions.
   app.route('/api/remote', remoteRoutes)
   app.route('/api', api)
+  app.route('/media', mediaRoutes)
   app.all('/api/*', (c) => c.json({ error: { code: 'not_found', message: 'Route not found' } }, 404))
 
   app.onError((err, c) => {
