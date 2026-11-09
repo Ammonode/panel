@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Bell,
@@ -25,10 +25,11 @@ import {
   Users,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { type NavItem, Overridable, Slot, useRegistry } from '../extensions/registry'
 import { api, can, formatMoney, type User } from '../lib/api'
 import { useMe, useUser } from '../lib/auth'
+import { useDismiss } from '../lib/hooks'
 import { useThemeMode } from '../lib/theme'
 import { Button, cn, Input, Toggle } from './ui'
 
@@ -265,11 +266,9 @@ function Topbar({ user, onMenu }: { user: User; onMenu: () => void }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [menu, setMenu] = useState(false)
-  const notifications = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => api.get<{ unread: number }>('/client/notifications'),
-    refetchInterval: 60_000,
-  })
+  const menuRef = useRef<HTMLDivElement>(null)
+  const closeMenu = useCallback(() => setMenu(false), [])
+  useDismiss(menuRef, menu, closeMenu)
   const balance = Object.entries(user.credits)[0]
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b border-line bg-surface/90 px-5 py-3.5 backdrop-blur lg:px-6">
@@ -300,25 +299,13 @@ function Topbar({ user, onMenu }: { user: User; onMenu: () => void }) {
         </Button>
       </div>
       <Input className="hidden w-52 md:block" icon={<Search className="size-4" />} placeholder="Search" />
-      <button
-        type="button"
-        className="relative grid size-10 place-items-center rounded-[10px] border border-line hover:bg-surface-2"
-        aria-label="Notifications"
-      >
-        <Bell className="size-[18px] stroke-[1.6]" />
-        {!!notifications.data?.unread && (
-          <span className="absolute top-2 right-2.5 size-2 rounded-full bg-red-500" />
-        )}
-      </button>
-      <div className="relative">
+      <NotificationBell />
+      <div className="relative" ref={menuRef}>
         <button type="button" onClick={() => setMenu((m) => !m)} aria-label="Account menu">
           <Avatar user={user} />
         </button>
         {menu && (
-          <div
-            className="absolute right-0 mt-2 w-48 rounded-[12px] border border-line bg-surface p-1.5 shadow-lg"
-            onMouseLeave={() => setMenu(false)}
-          >
+          <div className="absolute right-0 mt-2 w-48 rounded-[12px] border border-line bg-surface p-1.5 shadow-lg">
             <p className="truncate px-2.5 py-1.5 text-xs text-muted">{user.email}</p>
             <Link to="/account" className="block rounded-md px-2.5 py-1.5 text-sm hover:bg-surface-2">
               Account
@@ -338,6 +325,102 @@ function Topbar({ user, onMenu }: { user: User; onMenu: () => void }) {
         )}
       </div>
     </header>
+  )
+}
+
+type Notification = {
+  id: number
+  title: string
+  body: string | null
+  url: string | null
+  readAt: string | null
+  createdAt: string
+}
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false)
+  const bellRef = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  useDismiss(bellRef, open, close)
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const { data } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.get<{ data: Notification[]; unread: number }>('/client/notifications'),
+    refetchInterval: 60_000,
+  })
+  const toggle = async () => {
+    const next = !open
+    setOpen(next)
+    if (next && data?.unread) {
+      await api.post('/client/notifications/read')
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    }
+  }
+  return (
+    <div className="relative" ref={bellRef}>
+      <button
+        type="button"
+        onClick={toggle}
+        className="relative grid size-10 place-items-center rounded-[10px] border border-line hover:bg-surface-2"
+        aria-label="Notifications"
+        aria-expanded={open}
+      >
+        <Bell className="size-[18px] stroke-[1.6]" />
+        {!!data?.unread && <span className="absolute top-2 right-2.5 size-2 rounded-full bg-red-500" />}
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-2 w-80 rounded-[12px] border border-line bg-surface shadow-lg">
+          <p className="border-b border-line px-4 py-2.5 text-[13px] font-medium">Notifications</p>
+          <div className="max-h-96 overflow-y-auto">
+            {data?.data.map((n) => (
+              <button
+                type="button"
+                key={n.id}
+                className="block w-full border-b border-line px-4 py-2.5 text-left last:border-0 hover:bg-surface-2"
+                onClick={() => {
+                  setOpen(false)
+                  if (n.url) navigate({ to: n.url })
+                }}
+              >
+                <span className="flex items-center gap-2 text-[13px] font-medium">
+                  {!n.readAt && <span className="size-1.5 shrink-0 rounded-full bg-accent" />}
+                  {n.title}
+                </span>
+                {n.body && <span className="block text-xs text-muted">{n.body}</span>}
+                <span className="block text-[11px] text-subtle">
+                  {new Date(n.createdAt).toLocaleString()}
+                </span>
+              </button>
+            ))}
+            {data?.data.length === 0 && (
+              <p className="px-4 py-6 text-center text-[13px] text-muted">You are all caught up.</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Asks the user to confirm their email address. */
+function VerifyBanner() {
+  const user = useUser()
+  const resend = useMutation({ mutationFn: () => api.post('/account/verification') })
+  if (!user || user.emailVerified) return null
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-info-bg px-5 py-3 text-[13.5px] text-info">
+      Please confirm your email address. We sent a link to {user.email}.
+      <Button
+        size="sm"
+        variant="outline"
+        loading={resend.isPending}
+        disabled={resend.isSuccess}
+        onClick={() => resend.mutate()}
+      >
+        {resend.isSuccess ? 'Sent' : 'Resend link'}
+      </Button>
+    </div>
   )
 }
 
@@ -394,6 +477,7 @@ export function AppLayout() {
             />
             <main className="space-y-4 p-4 lg:p-5">
               <ImpersonationBanner />
+              <VerifyBanner />
               <Outlet />
             </main>
           </div>

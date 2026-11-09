@@ -16,12 +16,19 @@ import {
   AdminSettingsPage,
 } from './routes/admin/billing'
 import { AdminEggsPage } from './routes/admin/eggs'
+import { AdminMailPage } from './routes/admin/mail'
 import { AdminDatabaseHostsPage, AdminLocationsPage, AdminNodesPage } from './routes/admin/nodes'
 import { AdminOverviewPage } from './routes/admin/overview'
 import { AdminConfigOptionsPage, AdminProductEditPage, AdminProductsPage } from './routes/admin/products'
 import { AdminServerPage, AdminServersPage } from './routes/admin/servers'
 import { AdminRolesPage, AdminUserPage, AdminUsersPage } from './routes/admin/users'
-import { LoginPage, RegisterPage } from './routes/auth'
+import {
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+} from './routes/auth'
 import { CartPage } from './routes/billing/cart'
 import { CreditsPage, InvoicePage, InvoicesPage } from './routes/billing/invoices'
 import { ServicePage, ServicesPage } from './routes/billing/services'
@@ -42,7 +49,7 @@ const guest = createRoute({
   id: 'guest',
   component: Outlet,
   beforeLoad: async ({ context }) => {
-    const me = await context.queryClient.ensureQueryData(meQuery)
+    const me = await context.queryClient.fetchQuery(meQuery)
     if (me.user) throw redirect({ to: '/' })
   },
 })
@@ -52,7 +59,7 @@ const authed = createRoute({
   id: 'app',
   component: AppLayout,
   beforeLoad: async ({ context, location }) => {
-    const me = await context.queryClient.ensureQueryData(meQuery)
+    const me = await context.queryClient.fetchQuery(meQuery)
     if (!me.user) throw redirect({ to: '/login', search: { redirect: location.href } })
     if (location.pathname.startsWith('/admin') && !me.user.isAdmin) throw redirect({ to: '/' })
   },
@@ -70,10 +77,19 @@ const serverRoute = createRoute({
 const serverPage = (path: string, component: () => React.ReactNode) =>
   createRoute({ getParentRoute: () => serverRoute, path, component })
 
+const verifyRoute = createRoute({
+  getParentRoute: () => root,
+  path: '/verify-email',
+  component: VerifyEmailPage,
+})
+
 const routeTree = root.addChildren([
+  verifyRoute,
   guest.addChildren([
     createRoute({ getParentRoute: () => guest, path: '/login', component: LoginPage }),
     createRoute({ getParentRoute: () => guest, path: '/register', component: RegisterPage }),
+    createRoute({ getParentRoute: () => guest, path: '/forgot-password', component: ForgotPasswordPage }),
+    createRoute({ getParentRoute: () => guest, path: '/reset-password', component: ResetPasswordPage }),
   ]),
   authed.addChildren([
     page('/', DashboardPage),
@@ -122,6 +138,7 @@ const routeTree = root.addChildren([
     placeholder('/admin/tickets', 'Tickets'),
     page('/admin/extensions', AdminExtensionsPage),
     page('/admin/settings', AdminSettingsPage),
+    page('/admin/settings/email', AdminMailPage),
   ]),
 ])
 

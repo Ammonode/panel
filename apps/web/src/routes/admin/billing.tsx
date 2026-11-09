@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { SchemaForm, type SettingField } from '../../components/forms'
@@ -515,7 +516,17 @@ export function AdminSettingsPage() {
   })
   return (
     <Card>
-      <CardHeader title="Settings" />
+      <CardHeader
+        title="Settings"
+        action={
+          <Link
+            to="/admin/settings/email"
+            className="inline-flex h-10 items-center rounded-[10px] border border-line px-3 text-sm hover:bg-surface-2"
+          >
+            Email settings
+          </Link>
+        }
+      />
       <form
         className="space-y-4 px-5 pb-5"
         onSubmit={(e) => {

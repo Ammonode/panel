@@ -67,6 +67,7 @@ export type User = {
   theme: 'system' | 'light' | 'dark'
   credits: Record<string, string>
   twoFactorEnabled: boolean
+  emailVerified: boolean
   isAdmin: boolean
   permissions: string[]
 }
