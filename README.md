@@ -13,26 +13,31 @@ run game servers from the same place — no bridge modules, no second login.
 
 Servers run on [Ammonode Daemon](https://github.com/Ammonode/daemon).
 
-## Requirements
+## Install
 
-- [Bun](https://bun.sh) 1.4+
-- PostgreSQL 15+
-
-## Quick start
+**One command** (Ubuntu 22.04+ / Debian 12+, sets up PostgreSQL, the panel,
+a systemd service and Caddy with automatic HTTPS):
 
 ```bash
-git clone https://github.com/Ammonode/panel.git /var/www/ammonode
-cd /var/www/ammonode
-bun install
-cp .env.example .env
-bun apps/server/src/cli.ts key:generate   # paste into APP_KEY
-# set DATABASE_URL in .env
-bun run build
-bun apps/server/src/cli.ts setup          # migrate, seed, create the first admin
-bun start
+curl -sSL https://raw.githubusercontent.com/Ammonode/panel/main/install.sh | sudo bash
 ```
 
-Full installation guide, webserver and daemon setup: https://github.com/Ammonode/docs
+**Docker:**
+
+```bash
+curl -O https://raw.githubusercontent.com/Ammonode/panel/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/Ammonode/panel/main/.env.example
+# set APP_URL, APP_KEY (openssl rand -base64 32) and DB_PASSWORD in .env
+docker compose up -d
+docker compose exec panel bun apps/server/src/cli.ts user:make --admin \
+  --email you@example.com --username admin --password 'change-me'
+```
+
+Then add a node in **Admin → Nodes** and install the
+[daemon](https://github.com/Ammonode/daemon) on it.
+
+Full guides (manual install, reverse proxies, payments, backups, extensions):
+https://github.com/Ammonode/docs
 
 ## Development
 

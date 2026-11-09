@@ -1,0 +1,41 @@
+# Ammonode panel with PostgreSQL.
+#   1. cp .env.example .env and set APP_URL, APP_KEY and DB_PASSWORD
+#   2. docker compose up -d
+#   3. docker compose exec panel bun apps/server/src/cli.ts user:make --admin --email you@example.com --username admin --password 'change-me'
+services:
+  panel:
+    image: ghcr.io/ammonode/panel:latest
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://ammonode:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:5432/ammonode
+      STORAGE_PATH: /app/storage
+      # The container always listens on 3000; PANEL_PORT is the port on the host.
+      APP_PORT: "3000"
+    ports:
+      - "${PANEL_PORT:-3000}:3000"
+    volumes:
+      - storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ammonode
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ammonode
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ammonode"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  storage:
+  db:

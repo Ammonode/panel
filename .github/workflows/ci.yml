@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: Lint
+        run: bunx biome check .
+      - name: Typecheck
+        run: |
+          cd apps/server && bunx tsc --noEmit -p . && cd ../web && bunx tsc --noEmit -p .
+      - name: Test
+        run: bun test apps/server
+        env:
+          APP_KEY: ci-only-key-not-used-for-anything-real
+          DATABASE_URL: postgres://unused@127.0.0.1/unused
+      - name: Build web
+        run: bun run build
+      - name: Installer
+        run: shellcheck -S warning install.sh docker/entrypoint.sh
