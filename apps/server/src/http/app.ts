@@ -19,6 +19,7 @@ import { clientServerRoutes } from './routes/client-server'
 import { clientServerExtraRoutes } from './routes/client-server-extra'
 import { remoteRoutes } from './routes/remote'
 import { storeRoutes } from './routes/store'
+import { adminTicketRoutes, clientTicketRoutes } from './routes/tickets'
 import type { AppEnv } from './types'
 
 export const api = new Hono<AppEnv>()
@@ -44,6 +45,7 @@ export const api = new Hono<AppEnv>()
   .route('/client/servers', clientServerExtraRoutes)
   .route('/client', billingRoutes)
   .route('/store', storeRoutes)
+  .route('/client/tickets', clientTicketRoutes)
   .route('/admin', adminPanelRoutes)
   .route('/admin', adminDatabaseHostRoutes)
   .route('/admin', adminServerRoutes)
@@ -51,6 +53,7 @@ export const api = new Hono<AppEnv>()
   .route('/admin', adminUserRoutes)
   .route('/admin', adminBillingRoutes)
   .route('/admin', adminMailRoutes)
+  .route('/admin', adminTicketRoutes)
 
 export type Api = typeof api
 

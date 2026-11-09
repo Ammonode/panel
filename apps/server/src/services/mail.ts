@@ -51,6 +51,11 @@ export const defaultTemplates: Record<string, { subject: string; body: string; v
     body: 'Hi {{name}},\n\n{{staff}} replied to your ticket:\n\n{{message}}\n\n[View ticket]({{url}})',
     variables: ['name', 'subject', 'id', 'staff', 'message', 'url'],
   },
+  'ticket.customer_replied': {
+    subject: 'Customer replied to #{{id}}: {{subject}}',
+    body: '{{customer}} replied to ticket #{{id}}:\n\n{{message}}\n\n[Open ticket]({{url}})',
+    variables: ['id', 'subject', 'customer', 'department', 'priority', 'message', 'url'],
+  },
   'ticket.created_staff': {
     subject: 'New ticket #{{id}}: {{subject}}',
     body: '{{customer}} opened a ticket in {{department}} with {{priority}} priority:\n\n{{message}}\n\n[Open ticket]({{url}})',
