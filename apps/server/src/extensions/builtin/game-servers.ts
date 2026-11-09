@@ -170,6 +170,31 @@ export const extension: ServerExtension = {
         allocationLimit: r.allocations,
       })
     },
+    async checkUpgrade(ctx) {
+      const id = serverIdOf(ctx)
+      const server = id ? await db.query.servers.findFirst({ where: eq(schema.servers.id, id) }) : null
+      if (!server) return
+      const r = resolve(ctx)
+      const node = await db.query.nodes.findFirst({ where: eq(schema.nodes.id, server.nodeId) })
+      if (!node) return
+      const others = await db.query.servers.findMany({
+        where: eq(schema.servers.nodeId, node.id),
+        columns: { id: true, memory: true, disk: true },
+      })
+      const used = others
+        .filter((s) => s.id !== server.id)
+        .reduce((t, s) => ({ memory: t.memory + s.memory, disk: t.disk + s.disk }), { memory: 0, disk: 0 })
+      const cap = (total: number, over: number) =>
+        over < 0 ? Number.POSITIVE_INFINITY : total * (1 + over / 100)
+      if (
+        used.memory + r.memory > cap(node.memory, node.memoryOverallocate) ||
+        used.disk + r.disk > cap(node.disk, node.diskOverallocate)
+      ) {
+        throw new Error(
+          'There is not enough room on your server’s node for this plan right now. Please contact support.',
+        )
+      }
+    },
     async loginUrl(ctx) {
       const identifier = ctx.service.properties.serverIdentifier
       return typeof identifier === 'string' ? `/server/${identifier}` : null

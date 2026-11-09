@@ -114,6 +114,12 @@ export interface Provisioner {
   unsuspend(ctx: ServiceContext): Promise<void>
   terminate(ctx: ServiceContext): Promise<void>
   upgrade?(ctx: ServiceContext): Promise<void>
+  /**
+   * Called before an upgrade is invoiced with the context it would have
+   * afterwards. Throw an Error with a customer friendly message to refuse it
+   * (for example when the node has no room left).
+   */
+  checkUpgrade?(ctx: ServiceContext): Promise<void>
   /** Link shown on the service page, e.g. to the server console. */
   loginUrl?(ctx: ServiceContext): Promise<string | null>
 }

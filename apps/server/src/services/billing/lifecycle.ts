@@ -9,15 +9,17 @@ import { addPeriod } from './money'
 type Service = typeof schema.services.$inferSelect
 
 /** Builds what a provisioner extension receives for a service. */
-export async function serviceContext(service: Service): Promise<ServiceContext> {
+/** `onlyConfigIds` limits the config answers used (to preview a product change). */
+export async function serviceContext(service: Service, onlyConfigIds?: number[]): Promise<ServiceContext> {
   const product = (await db.query.products.findFirst({ where: eq(schema.products.id, service.productId) }))!
   const user = (await db.query.users.findFirst({ where: eq(schema.users.id, service.userId) }))!
   const configs = await db.query.serviceConfigs.findMany({
     where: eq(schema.serviceConfigs.serviceId, service.id),
   })
-  const options = configs.length ? await db.query.configOptions.findMany() : []
+  const usedConfigs = onlyConfigIds ? configs.filter((c) => onlyConfigIds.includes(c.id)) : configs
+  const options = usedConfigs.length ? await db.query.configOptions.findMany() : []
   const configOptions: Record<string, string> = {}
-  for (const c of configs) {
+  for (const c of usedConfigs) {
     const option = options.find((o) => o.id === c.configOptionId)
     const value = c.configValueId ? options.find((o) => o.id === c.configValueId) : null
     if (!option) continue

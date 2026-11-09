@@ -117,6 +117,21 @@ export async function requestUpgrade(service: Service, productId: number, planId
       'conflict',
     )
 
+  // Let the provisioner refuse upgrades it cannot fulfil before money is taken.
+  const { getProvisioner } = await import('../../extensions/registry')
+  const target = await db.query.products.findFirst({ where: eq(schema.products.id, productId) })
+  const p = getProvisioner(target?.serverExtension)
+  if (p?.provisioner.checkUpgrade) {
+    const { serviceContext } = await import('./lifecycle')
+    const { keptConfigIds } = await recurringPriceFor(service, productId, planId)
+    const ctx = await serviceContext({ ...service, productId, planId }, keptConfigIds)
+    try {
+      await p.provisioner.checkUpgrade(ctx)
+    } catch (e) {
+      throw new HttpError(422, (e as Error).message, 'upgrade_unavailable')
+    }
+  }
+
   const [upgrade] = await db
     .insert(schema.serviceUpgrades)
     .values({ serviceId: service.id, productId, planId, status: 'pending' })
