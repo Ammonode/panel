@@ -229,8 +229,9 @@ export async function deleteServer(id: number, force = false) {
       if (!force) throw e
     })
   }
+  const { deleteBackupFile } = await import('./backups')
   for (const backup of await db.query.backups.findMany({ where: eq(schema.backups.serverId, server.id) })) {
-    await daemonRequest(node, 'DELETE', `/api/servers/${server.uuid}/backup/${backup.uuid}`).catch(() => {})
+    await deleteBackupFile(server, node, backup).catch(() => {})
   }
   await daemonRequest(node, 'DELETE', `/api/servers/${server.uuid}`).catch((e) => {
     if (!force) throw e

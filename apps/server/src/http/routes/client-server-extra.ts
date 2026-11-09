@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db, schema } from '../../db'
 import { HttpError, notFound } from '../../lib/errors'
 import { allServerPermissions } from '../../lib/permissions'
+import { backupDownloadUrl, deleteBackupFile, restoreBackup, startBackup } from '../../services/backups'
 import { daemonRequest, signDaemonToken } from '../../services/daemon'
 import { createDatabase, deleteDatabase, rotatePassword, serializeDatabase } from '../../services/databases'
 import { nextRun, runSchedule } from '../../services/schedules'
@@ -162,44 +163,17 @@ export const clientServerExtraRoutes = new Hono<Env>()
       const a = c.get('access')
       a.require('backup.create')
       a.requireReady()
-      const [{ n }] = (await db
-        .select({ n: count() })
-        .from(schema.backups)
-        .where(eq(schema.backups.serverId, a.server.id))) as [{ n: number }]
-      if (n >= a.server.backupLimit)
-        throw new HttpError(
-          422,
-          a.server.backupLimit
-            ? `This server is limited to ${a.server.backupLimit} backups. Delete one first.`
-            : 'Backups are not available for this server.',
-          'limit',
-        )
       const running = await db.query.backups.findFirst({
-        where: and(eq(schema.backups.serverId, a.server.id), eq(schema.backups.isSuccessful, false)),
+        where: and(eq(schema.backups.serverId, a.server.id), isNull(schema.backups.completedAt)),
       })
-      if (running && !running.completedAt)
-        throw new HttpError(409, 'Another backup is still running', 'conflict')
+      if (running) throw new HttpError(409, 'Another backup is still running', 'conflict')
       const body = c.req.valid('json')
-      const [backup] = await db
-        .insert(schema.backups)
-        .values({
-          uuid: crypto.randomUUID(),
-          serverId: a.server.id,
-          name: body.name || `Backup ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
-          ignoredFiles: body.ignored,
-          isLocked: body.isLocked,
-        })
-        .returning()
-      try {
-        await daemonRequest(a.node, 'POST', `${daemonBase(a)}/backup`, {
-          uuid: backup!.uuid,
-          ignore: body.ignored,
-        })
-      } catch (e) {
-        await db.delete(schema.backups).where(eq(schema.backups.id, backup!.id))
-        throw e
-      }
-      await log(c, a, 'server:backup.start', { name: backup!.name })
+      const backup = await startBackup(a.server, a.node, {
+        name: body.name || `Backup ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
+        ignored: body.ignored,
+        isLocked: body.isLocked,
+      })
+      await log(c, a, 'server:backup.start', { name: backup.name })
       return c.json({ data: backup }, 201)
     },
   )
@@ -220,13 +194,9 @@ export const clientServerExtraRoutes = new Hono<Env>()
       where: and(eq(schema.backups.serverId, a.server.id), eq(schema.backups.uuid, c.req.param('backup'))),
     })
     if (!b?.isSuccessful) throw notFound('Backup')
-    const token = await signDaemonToken(a.node, { server_uuid: a.server.uuid, backup_uuid: b.uuid }, 300)
+    const url = await backupDownloadUrl(a.server, a.node, b)
     await log(c, a, 'server:backup.download', { name: b.name })
-    return c.json({
-      data: {
-        url: `${a.node.scheme}://${a.node.fqdn}:${a.node.daemonListen}/download/backup?token=${token}`,
-      },
-    })
+    return c.json({ data: { url } })
   })
   .post(
     '/:server/backups/:backup/restore',
@@ -244,7 +214,7 @@ export const clientServerExtraRoutes = new Hono<Env>()
         .set({ status: 'restoring_backup' })
         .where(eq(schema.servers.id, a.server.id))
       try {
-        await daemonRequest(a.node, 'POST', `${daemonBase(a)}/backup/${b.uuid}/restore`, c.req.valid('json'))
+        await restoreBackup(a.server, a.node, b, c.req.valid('json').truncate)
       } catch (e) {
         await db.update(schema.servers).set({ status: null }).where(eq(schema.servers.id, a.server.id))
         throw e
@@ -261,7 +231,7 @@ export const clientServerExtraRoutes = new Hono<Env>()
     })
     if (!b) throw notFound('Backup')
     if (b.isLocked) throw new HttpError(422, 'Unlock this backup before deleting it', 'locked')
-    await daemonRequest(a.node, 'DELETE', `${daemonBase(a)}/backup/${b.uuid}`)
+    await deleteBackupFile(a.server, a.node, b)
     await db.delete(schema.backups).where(eq(schema.backups.id, b.id))
     await log(c, a, 'server:backup.delete', { name: b.name })
     return c.body(null, 204)

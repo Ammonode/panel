@@ -1,6 +1,7 @@
-import { and, count, eq, lte } from 'drizzle-orm'
+import { and, eq, lte } from 'drizzle-orm'
 import { db, schema } from '../db'
 import { logActivity } from '../lib/activity'
+import { startBackup } from './backups'
 import { daemonRequest } from './daemon'
 import { cronMatches, registerTask } from './scheduler'
 
@@ -60,21 +61,10 @@ export async function runSchedule(scheduleId: number, manual = false) {
         if (task.action === 'power')
           await daemonRequest(node, 'POST', `${base}/power`, { action: task.payload })
         if (task.action === 'backup') {
-          const [{ n }] = (await db
-            .select({ n: count() })
-            .from(schema.backups)
-            .where(eq(schema.backups.serverId, server.id))) as [{ n: number }]
-          if (n >= server.backupLimit) throw new Error('backup limit reached')
-          const [backup] = await db
-            .insert(schema.backups)
-            .values({
-              uuid: crypto.randomUUID(),
-              serverId: server.id,
-              name: `${schedule.name} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
-              ignoredFiles: task.payload,
-            })
-            .returning()
-          await daemonRequest(node, 'POST', `${base}/backup`, { uuid: backup!.uuid, ignore: task.payload })
+          await startBackup(server, node, {
+            name: `${schedule.name} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
+            ignored: task.payload,
+          })
         }
       } catch (e) {
         await logActivity({

@@ -6,6 +6,7 @@ import { HttpError } from '../lib/errors'
 import { getSettings } from '../lib/settings'
 import { authenticate } from './middleware/auth'
 import { accountRoutes } from './routes/account'
+import { adminBackupStorageRoutes } from './routes/admin/backup-storage'
 import { adminBillingRoutes } from './routes/admin/billing'
 import { adminBrandingRoutes, mediaRoutes } from './routes/admin/branding'
 import { adminEggRoutes, adminNodeExtraRoutes } from './routes/admin/eggs'
@@ -68,6 +69,7 @@ export const api = new Hono<AppEnv>()
   .route('/admin', adminAnnouncementRoutes)
   .route('/admin', adminBrandingRoutes)
   .route('/admin', adminEggRoutes)
+  .route('/admin', adminBackupStorageRoutes)
   .route('/admin', adminNodeExtraRoutes)
 
 export type Api = typeof api

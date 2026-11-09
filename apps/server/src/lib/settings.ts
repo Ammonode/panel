@@ -36,6 +36,14 @@ export const defaultSettings = {
   'mail.from_name': '' as string,
   'app.support_email': '' as string,
   'billing.company_details': '' as string,
+  'backups.driver': 'local' as 'local' | 's3',
+  'backups.s3_endpoint': '' as string,
+  'backups.s3_region': 'us-east-1',
+  'backups.s3_bucket': '' as string,
+  'backups.s3_access_key': '' as string,
+  'backups.s3_secret_key': '' as string,
+  'backups.s3_prefix': 'backups',
+  'backups.s3_path_style': false,
 }
 
 export type SettingKey = keyof typeof defaultSettings
