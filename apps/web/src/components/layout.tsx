@@ -8,6 +8,7 @@ import {
   Database,
   Egg,
   Gamepad2,
+  Gift,
   LayoutGrid,
   LifeBuoy,
   MapPin,
@@ -31,7 +32,7 @@ import { type NavItem, Overridable, Slot, useRegistry } from '../extensions/regi
 import { api, can, formatMoney, type User } from '../lib/api'
 import { useMe, useUser } from '../lib/auth'
 import { useDismiss } from '../lib/hooks'
-import { Brand } from '../lib/settings'
+import { Brand, usePublicSettings } from '../lib/settings'
 import { useThemeMode } from '../lib/theme'
 import { Button, cn, Input, Toggle } from './ui'
 
@@ -42,7 +43,22 @@ const clientNav: NavItem[] = [
   { id: 'store', label: 'Store', to: '/store', icon: ShoppingBag, area: 'client' },
   { id: 'invoices', label: 'Billing', to: '/invoices', icon: CreditCard, area: 'client' },
   { id: 'security', label: 'Security', to: '/account/security', icon: ShieldCheck, area: 'client' },
-  { id: 'support', label: 'Support', to: '/tickets', icon: LifeBuoy, area: 'client' },
+  {
+    id: 'support',
+    label: 'Support',
+    to: '/tickets',
+    icon: LifeBuoy,
+    area: 'client',
+    requires: 'tickets.enabled',
+  },
+  {
+    id: 'affiliate',
+    label: 'Affiliate',
+    to: '/affiliate',
+    icon: Gift,
+    area: 'client',
+    requires: 'affiliates.enabled',
+  },
 ]
 
 const adminNav: NavItem[] = [
@@ -187,12 +203,16 @@ function Sidebar({
 }) {
   const path = useRouterState({ select: (s) => s.location.pathname })
   const { nav: extNav } = useRegistry()
+  const settings = usePublicSettings()
   const { isDark, setMode } = useThemeMode()
   const area = path.startsWith('/admin') ? 'admin' : 'client'
   const items = [
     ...(area === 'admin' ? adminNav : clientNav),
     ...extNav.filter((n) => n.area === area && n.section !== 'bottom'),
   ]
+    .filter(
+      (n) => !n.requires || (settings.data as Record<string, unknown> | undefined)?.[n.requires] === true,
+    )
     .filter((n) => !n.permission || can(user, n.permission))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const isActive = (to: string) =>

@@ -14,6 +14,8 @@ export type NavItem = {
   section?: 'main' | 'bottom'
   order?: number
   permission?: string
+  /** Public setting that must be true for the item to show, e.g. `tickets.enabled`. */
+  requires?: string
 }
 
 export type ExtensionRoute = { path: string; area: 'client' | 'admin'; component: ComponentType }

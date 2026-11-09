@@ -514,6 +514,8 @@ const billingSettings: SettingField[] = [
     ],
   },
   { key: 'auth.registration', label: 'Allow registration', type: 'boolean' },
+  { key: 'affiliates.enabled', label: 'Affiliate program', type: 'boolean' },
+  { key: 'affiliates.reward_percent', label: 'Affiliate commission (%)', type: 'number', min: 0, max: 100 },
 ]
 
 export function AdminSettingsPage() {

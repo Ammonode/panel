@@ -27,6 +27,7 @@ import { AdminConfigOptionsPage, AdminProductEditPage, AdminProductsPage } from 
 import { AdminServerPage, AdminServersPage } from './routes/admin/servers'
 import { AdminTicketPage, AdminTicketsPage } from './routes/admin/tickets'
 import { AdminRolesPage, AdminUserPage, AdminUsersPage } from './routes/admin/users'
+import { AffiliatePage } from './routes/affiliate'
 import { AnnouncementsPage } from './routes/announcements'
 import {
   ForgotPasswordPage,
@@ -178,6 +179,7 @@ const routeTree = root.addChildren([
     page('/admin/settings/email', AdminMailPage),
     page('/admin/announcements', AdminAnnouncementsPage),
     page('/announcements', AnnouncementsPage),
+    page('/affiliate', AffiliatePage),
   ]),
 ])
 

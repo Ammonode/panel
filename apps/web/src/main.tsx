@@ -6,6 +6,11 @@ import { registry } from './extensions/registry'
 import { makeRouter } from './router'
 import './styles/app.css'
 
+// Remember affiliate referrals (?ref=CODE) for the sign up that may follow.
+const ref = new URLSearchParams(location.search).get('ref')
+if (ref && /^[a-z0-9]{4,32}$/i.test(ref))
+  fetch(`/api/affiliates/visit/${ref}`, { method: 'POST', credentials: 'same-origin' }).catch(() => {})
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 })
