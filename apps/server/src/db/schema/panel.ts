@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  json,
   jsonb,
   pgTable,
   serial,
@@ -94,7 +95,8 @@ export const eggs = pgTable('eggs', {
   name: varchar('name', { length: 191 }).notNull(),
   description: text('description'),
   features: jsonb('features').$type<string[]>().notNull().default([]),
-  dockerImages: jsonb('docker_images').$type<Record<string, string>>().notNull().default({}),
+  // json (not jsonb) keeps the egg's order: the first image is the default for new servers.
+  dockerImages: json('docker_images').$type<Record<string, string>>().notNull().default({}),
   fileDenylist: jsonb('file_denylist').$type<string[]>().notNull().default([]),
   updateUrl: text('update_url'),
   forceOutgoingIp: boolean('force_outgoing_ip').notNull().default(false),
@@ -309,3 +311,22 @@ export const scheduleTasks = pgTable('schedule_tasks', {
   continueOnFailure: boolean('continue_on_failure').notNull().default(false),
   ...timestamps,
 })
+
+export const serverTransfers = pgTable(
+  'server_transfers',
+  {
+    id: serial('id').primaryKey(),
+    serverId: integer('server_id')
+      .notNull()
+      .references(() => servers.id, { onDelete: 'cascade' }),
+    oldNodeId: integer('old_node_id').notNull(),
+    newNodeId: integer('new_node_id').notNull(),
+    oldAllocationIds: jsonb('old_allocation_ids').$type<number[]>().notNull().default([]),
+    newAllocationId: integer('new_allocation_id').notNull(),
+    // null = running, true = done, false = failed
+    successful: boolean('successful'),
+    error: text('error'),
+    ...timestamps,
+  },
+  (t) => [index('server_transfers_server_idx').on(t.serverId)],
+)

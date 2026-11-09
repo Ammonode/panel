@@ -8,6 +8,7 @@ import { decrypt, safeEqual, verifyPassword } from '../../lib/crypto'
 import { HttpError, notFound } from '../../lib/errors'
 import { hasPermission } from '../../lib/permissions'
 import { buildServerConfiguration, installScript } from '../../services/server-config'
+import { activeTransfer, finishTransfer } from '../../services/transfers'
 import { validate } from '../validate'
 
 type Node = typeof schema.nodes.$inferSelect
@@ -28,11 +29,13 @@ const nodeAuth = createMiddleware<RemoteEnv>(async (c, next) => {
 })
 
 const serverOnNode = async (node: Node, uuid: string) => {
-  const server = await db.query.servers.findFirst({
-    where: and(eq(schema.servers.uuid, uuid), eq(schema.servers.nodeId, node.id)),
-  })
+  const server = await db.query.servers.findFirst({ where: eq(schema.servers.uuid, uuid) })
   if (!server) throw notFound('Server')
-  return server
+  if (server.nodeId === node.id) return server
+  // The target node of a running transfer may read the server too.
+  const transfer = await activeTransfer(server.id)
+  if (transfer?.newNodeId === node.id) return server
+  throw notFound('Server')
 }
 
 export const remoteRoutes = new Hono<RemoteEnv>()
@@ -78,6 +81,20 @@ export const remoteRoutes = new Hono<RemoteEnv>()
     },
   )
   .post('/activity', async (c) => c.body(null, 204))
+  .post(
+    '/servers/:uuid/transfer',
+    validate('json', z.object({ successful: z.boolean(), error: z.string().max(2000).optional() })),
+    async (c) => {
+      const server = await serverOnNode(c.get('node'), c.req.param('uuid'))
+      const { successful, error } = c.req.valid('json')
+      // Only the receiving node can confirm a transfer; the source may only report failure.
+      const transfer = await activeTransfer(server.id)
+      if (successful && transfer?.newNodeId !== c.get('node').id)
+        throw new HttpError(403, 'Only the target node can confirm a transfer', 'forbidden')
+      await finishTransfer(c.req.param('uuid'), successful, error)
+      return c.body(null, 204)
+    },
+  )
 
   // SFTP login: "<username>.<server short id>" + panel password or an account SSH key.
   .post(

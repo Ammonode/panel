@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db, schema } from '../../../db'
@@ -6,6 +6,7 @@ import { logActivity } from '../../../lib/activity'
 import { HttpError, notFound } from '../../../lib/errors'
 import { daemonRequest } from '../../../services/daemon'
 import { validateVariable } from '../../../services/servers'
+import { startTransfer } from '../../../services/transfers'
 import { clientIp, requirePermission } from '../../middleware/auth'
 import type { AppEnv } from '../../types'
 import { onlyProvided, validate } from '../../validate'
@@ -42,6 +43,25 @@ const buildBody = z
   .partial()
 
 export const adminServerEditRoutes = new Hono<AppEnv>()
+  .post(
+    '/servers/:id/transfer',
+    requirePermission('admin.servers.manage'),
+    validate('json', z.object({ nodeId: z.number().int(), allocationId: z.number().int() })),
+    async (c) => {
+      const { server } = await load(c.req.param('id'))
+      const { nodeId, allocationId } = c.req.valid('json')
+      await startTransfer(server.id, nodeId, allocationId, c.get('user')!.id)
+      return c.json({ ok: true }, 202)
+    },
+  )
+  .get('/servers/:id/transfer', requirePermission('admin.servers.view'), async (c) => {
+    const { server } = await load(c.req.param('id'))
+    const last = await db.query.serverTransfers.findFirst({
+      where: eq(schema.serverTransfers.serverId, server.id),
+      orderBy: desc(schema.serverTransfers.id),
+    })
+    return c.json({ data: last ?? null })
+  })
   .get('/servers/:id', requirePermission('admin.servers.view'), async (c) => {
     const { server, node } = await load(c.req.param('id'))
     const owner = await db.query.users.findFirst({
