@@ -5,26 +5,79 @@ import { api } from '../../lib/api'
 import { serverCan } from '../../lib/server'
 import { useServerContext } from './layout'
 
+type Allocation = { id: number; ip: string; port: number; notes: string | null; isDefault: boolean }
+
 export function NetworkPage() {
   const { server } = useServerContext()
+  const qc = useQueryClient()
+  const base = `/client/servers/${server.identifier}/network/allocations`
   const { data } = useQuery({
     queryKey: ['allocations', server.identifier],
-    queryFn: () =>
-      api.get<{ data: { id: number; ip: string; port: number; notes: string | null; isDefault: boolean }[] }>(
-        `/client/servers/${server.identifier}/network/allocations`,
-      ),
+    queryFn: () => api.get<{ data: Allocation[]; limit: number }>(base),
   })
+  const refresh = () => qc.invalidateQueries({ queryKey: ['allocations', server.identifier] })
+  const add = useMutation({ mutationFn: () => api.post(base), onSuccess: refresh })
+  const primary = useMutation({
+    mutationFn: (id: number) => api.post(`${base}/${id}/primary`),
+    onSuccess: () => {
+      refresh()
+      qc.invalidateQueries({ queryKey: ['server'] })
+    },
+  })
+  const remove = useMutation({ mutationFn: (id: number) => api.delete(`${base}/${id}`), onSuccess: refresh })
+  const notes = useMutation({
+    mutationFn: ({ id, value }: { id: number; value: string }) =>
+      api.patch(`${base}/${id}`, { notes: value || null }),
+  })
+  const extra = (data?.data.length ?? 1) - 1
+  const limit = data?.limit ?? 0
+  const err = add.error ?? primary.error ?? remove.error ?? notes.error
   return (
     <Card>
-      <CardHeader title="Allocations" subtitle="Addresses players use to connect to this server." />
+      <CardHeader
+        title="Network"
+        subtitle={`Addresses players use to connect. ${extra} of ${limit} extra ports used. Changes apply after a restart.`}
+        action={
+          serverCan(server, 'allocation.create') && (
+            <Button disabled={extra >= limit} loading={add.isPending} onClick={() => add.mutate()}>
+              Add port
+            </Button>
+          )
+        }
+      />
+      {err && <p className="px-5 pb-3 text-[13px] text-danger">{err.message}</p>}
       <div className="divide-y divide-line border-t border-line">
         {data?.data.map((a) => (
-          <div key={a.id} className="flex items-center gap-4 px-5 py-3 text-[13.5px]">
-            <code className="flex-1">
+          <div key={a.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-[13.5px]">
+            <code className="w-48">
               {a.ip}:{a.port}
             </code>
-            <span className="text-xs text-muted">{a.notes}</span>
-            {a.isDefault && <Pill tone="info">Primary</Pill>}
+            <input
+              className="h-8 min-w-40 flex-1 rounded-lg border border-line bg-surface px-2 text-xs disabled:opacity-60"
+              defaultValue={a.notes ?? ''}
+              placeholder="Notes, e.g. Dynmap"
+              aria-label={`Notes for port ${a.port}`}
+              disabled={!serverCan(server, 'allocation.update')}
+              onBlur={(e) =>
+                e.target.value !== (a.notes ?? '') && notes.mutate({ id: a.id, value: e.target.value })
+              }
+            />
+            {a.isDefault ? (
+              <Pill tone="info">Primary</Pill>
+            ) : (
+              serverCan(server, 'allocation.update') && (
+                <span className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => primary.mutate(a.id)}>
+                    Make primary
+                  </Button>
+                  {serverCan(server, 'allocation.delete') && (
+                    <Button size="sm" variant="ghost" onClick={() => remove.mutate(a.id)}>
+                      Remove
+                    </Button>
+                  )}
+                </span>
+              )
+            )}
           </div>
         ))}
         {data?.data.length === 0 && <Empty title="No allocations" />}

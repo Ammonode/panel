@@ -48,6 +48,9 @@ export function ConsolePage() {
   const [history, setHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [eula, setEula] = useState(false)
+  const [java, setJava] = useState(false)
+  const [switching, setSwitching] = useState(false)
+  const [image, setImage] = useState(server.image)
   const [accepting, setAccepting] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
   const stick = useRef(true)
@@ -75,6 +78,16 @@ export function ConsolePage() {
           /agree to the EULA/i.test(stripAnsi(text))
         )
           setEula(true)
+        // Egg feature `java_version`: offer another Java image when the jar needs a different one.
+        if (
+          kind === 'out' &&
+          stateRef.current !== 'running' &&
+          server.egg?.features.includes('java_version') &&
+          /requires running the server with Java|UnsupportedClassVersionError|compiled by a more recent version of the Java Runtime|Unsupported major\.minor version/i.test(
+            stripAnsi(text),
+          )
+        )
+          setJava(true)
         setLines((l) => [...l, { id: lineId++, text, kind: kind as Line['kind'] }].slice(-500))
       }),
     [socket.on, server.egg],
@@ -239,6 +252,53 @@ export function ConsolePage() {
           Minecraft EULA
         </a>
         . The server will start right after.
+      </Modal>
+      <Modal
+        open={java}
+        onClose={() => setJava(false)}
+        title="This server needs a different Java version"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setJava(false)}>
+              Cancel
+            </Button>
+            <Button
+              loading={switching}
+              disabled={image === server.image}
+              onClick={async () => {
+                setSwitching(true)
+                try {
+                  await api.put(`/client/servers/${server.identifier}/settings/docker-image`, { image })
+                  // Restart also works while the daemon is still retrying after the crash.
+                  await api.post(`/client/servers/${server.identifier}/power`, { signal: 'restart' })
+                  setJava(false)
+                } finally {
+                  setSwitching(false)
+                }
+              }}
+            >
+              Switch and start
+            </Button>
+          </>
+        }
+      >
+        <p className="mb-3">
+          The game version you installed needs another Java release. Pick a newer Java image and start the
+          server again.
+        </p>
+        <select
+          className="h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-sm text-fg"
+          value={image}
+          onChange={(e) => setImage(e.target.value)}
+          aria-label="Java image"
+        >
+          {Object.entries(server.egg?.dockerImages ?? {}).map(([label, img]) => (
+            <option key={img} value={img}>
+              {label}
+              {img === server.image ? ' (current)' : ''}
+            </option>
+          ))}
+        </select>
       </Modal>
     </>
   )
