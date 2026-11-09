@@ -6,6 +6,7 @@ import { Button, Card, CardHeader, Empty, Field, Input, Modal, Pill } from '../.
 import { api, formatDate, formatMoney } from '../../lib/api'
 import { invoiceTone, statusLabel } from '../billing/invoices'
 import { serviceTone } from '../billing/services'
+import { ManualInvoiceCard } from './content'
 
 type Role = { id: number; name: string; permissions: string[]; users: number }
 type UserRow = {
@@ -467,6 +468,7 @@ export function AdminUserPage() {
             {addCredit.error && <p className="w-full text-[13px] text-danger">{addCredit.error.message}</p>}
           </form>
         </Card>
+        <ManualInvoiceCard userId={data.id} />
         <Card>
           <CardHeader title="Invoices" />
           <div className="divide-y divide-line border-t border-line">

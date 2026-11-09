@@ -561,3 +561,218 @@ export function CurrenciesTaxCard() {
     </Card>
   )
 }
+
+type Mount = {
+  id: number
+  name: string
+  description: string | null
+  source: string
+  target: string
+  readOnly: boolean
+  servers: number[]
+}
+
+export function AdminMountsPage() {
+  const qc = useQueryClient()
+  const { data } = useQuery({
+    queryKey: ['admin', 'mounts'],
+    queryFn: () => api.get<{ data: Mount[] }>('/admin/mounts').then((r) => r.data),
+  })
+  const [form, setForm] = useState({ name: '', source: '', target: '', readOnly: true })
+  const create = useMutation({
+    mutationFn: () => api.post('/admin/mounts', form),
+    onSuccess: () => {
+      setForm({ name: '', source: '', target: '', readOnly: true })
+      qc.invalidateQueries({ queryKey: ['admin', 'mounts'] })
+    },
+  })
+  const remove = useMutation({
+    mutationFn: (id: number) => api.delete(`/admin/mounts/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'mounts'] }),
+  })
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <Card>
+        <CardHeader
+          title="Mounts"
+          subtitle="Folders on the node shared into servers, e.g. a modpack library. Attach them to servers in the server editor."
+        />
+        <div className="divide-y divide-line border-t border-line">
+          {data?.map((m) => (
+            <div key={m.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-[13px]">
+              <span className="min-w-40 flex-1">
+                <span className="font-medium">{m.name}</span>
+                <code className="block text-xs text-muted">
+                  {m.source} → {m.target}
+                </code>
+              </span>
+              {m.readOnly && <Pill>Read only</Pill>}
+              <span className="text-xs text-muted">{m.servers.length} servers</span>
+              <Button size="sm" variant="ghost" onClick={() => remove.mutate(m.id)}>
+                Delete
+              </Button>
+            </div>
+          ))}
+          {data?.length === 0 && <Empty title="No mounts" />}
+        </div>
+      </Card>
+      <Card>
+        <CardHeader title="New mount" />
+        <form
+          className="space-y-4 px-5 pb-5"
+          onSubmit={(e) => {
+            e.preventDefault()
+            create.mutate()
+          }}
+        >
+          <Field label="Name">
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </Field>
+          <Field label="Path on the node" hint="Must exist on every node it is used on">
+            <Input
+              placeholder="/srv/modpacks"
+              value={form.source}
+              onChange={(e) => setForm({ ...form, source: e.target.value })}
+            />
+          </Field>
+          <Field label="Path in the server">
+            <Input
+              placeholder="/mnt/modpacks"
+              value={form.target}
+              onChange={(e) => setForm({ ...form, target: e.target.value })}
+            />
+          </Field>
+          <span className="flex items-center gap-3 text-[13px]">
+            <Toggle
+              checked={form.readOnly}
+              onChange={(v) => setForm({ ...form, readOnly: v })}
+              label="Read only"
+            />{' '}
+            Read only
+          </span>
+          {create.error && <p className="text-[13px] text-danger">{create.error.message}</p>}
+          <Button type="submit" loading={create.isPending}>
+            Create mount
+          </Button>
+        </form>
+      </Card>
+    </div>
+  )
+}
+
+/** Mount picker for the admin server editor. */
+export function ServerMountsCard({ serverId }: { serverId: number }) {
+  const qc = useQueryClient()
+  const { data } = useQuery({
+    queryKey: ['admin', 'mounts'],
+    queryFn: () => api.get<{ data: Mount[] }>('/admin/mounts').then((r) => r.data),
+  })
+  const toggle = useMutation({
+    mutationFn: ({ id, attached }: { id: number; attached: boolean }) =>
+      api.put(`/admin/servers/${serverId}/mounts/${id}`, { attached }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'mounts'] }),
+  })
+  if (!data?.length) return null
+  return (
+    <Card>
+      <CardHeader title="Mounts" subtitle="Applies the next time the server starts." />
+      <div className="flex flex-wrap gap-2 px-5 pb-5">
+        {data.map((m) => (
+          <label
+            key={m.id}
+            className="flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-[13px]"
+          >
+            <input
+              type="checkbox"
+              checked={m.servers.includes(serverId)}
+              onChange={(e) => toggle.mutate({ id: m.id, attached: e.target.checked })}
+            />
+            {m.name} <code className="text-xs text-muted">{m.target}</code>
+          </label>
+        ))}
+        {toggle.error && <p className="w-full text-[13px] text-danger">{toggle.error.message}</p>}
+      </div>
+    </Card>
+  )
+}
+
+/** Create a one-off invoice for a customer. */
+export function ManualInvoiceCard({ userId }: { userId: number }) {
+  const qc = useQueryClient()
+  const [items, setItems] = useState([{ description: '', price: '', quantity: 1 }])
+  const [notify, setNotify] = useState(true)
+  const create = useMutation({
+    mutationFn: () =>
+      api.post<{ data: { id: number } }>('/admin/invoices', {
+        userId,
+        items: items.filter((i) => i.description && i.price),
+        notify,
+      }),
+    onSuccess: () => {
+      setItems([{ description: '', price: '', quantity: 1 }])
+      qc.invalidateQueries({ queryKey: ['admin', 'user', String(userId)] })
+    },
+  })
+  return (
+    <Card>
+      <CardHeader title="Create invoice" subtitle="For one-off work or fees." />
+      <div className="space-y-2 px-5 pb-5">
+        {items.map((it, i) => (
+          <div key={i} className="flex gap-2">
+            <Input
+              className="flex-1"
+              placeholder="Description"
+              value={it.description}
+              onChange={(e) =>
+                setItems(items.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))
+              }
+            />
+            <Input
+              className="w-24"
+              type="number"
+              step="0.01"
+              placeholder="Price"
+              value={it.price}
+              onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))}
+            />
+            <Input
+              className="w-16"
+              type="number"
+              min={1}
+              value={it.quantity}
+              onChange={(e) =>
+                setItems(items.map((x, j) => (j === i ? { ...x, quantity: Number(e.target.value) } : x)))
+              }
+              aria-label="Quantity"
+            />
+          </div>
+        ))}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setItems([...items, { description: '', price: '', quantity: 1 }])}
+          >
+            + Line
+          </Button>
+          <span className="flex items-center gap-3 text-[13px]">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} /> Email
+              the customer
+            </label>
+            <Button
+              size="sm"
+              loading={create.isPending}
+              disabled={!items.some((i) => i.description && i.price)}
+              onClick={() => create.mutate()}
+            >
+              Create
+            </Button>
+          </span>
+        </div>
+        {create.isSuccess && <p className="text-[13px] text-success">Invoice created.</p>}
+        {create.error && <p className="text-[13px] text-danger">{create.error.message}</p>}
+      </div>
+    </Card>
+  )
+}

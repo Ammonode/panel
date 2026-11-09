@@ -16,7 +16,7 @@ import {
   AdminServicesPage,
   AdminSettingsPage,
 } from './routes/admin/billing'
-import { AdminAnnouncementsPage } from './routes/admin/content'
+import { AdminAnnouncementsPage, AdminMountsPage } from './routes/admin/content'
 import { AdminEggEditPage } from './routes/admin/egg-edit'
 import { AdminEggsPage } from './routes/admin/eggs'
 import { AdminInvoicePage } from './routes/admin/invoice'
@@ -180,6 +180,7 @@ const routeTree = root.addChildren([
     page('/admin/settings', AdminSettingsPage),
     page('/admin/settings/email', AdminMailPage),
     page('/admin/announcements', AdminAnnouncementsPage),
+    page('/admin/mounts', AdminMountsPage),
     page('/announcements', AnnouncementsPage),
     page('/affiliate', AffiliatePage),
     page('/x/$', () => <ExtensionPage area="client" />),

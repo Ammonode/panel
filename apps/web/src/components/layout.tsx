@@ -7,6 +7,7 @@ import {
   CreditCard,
   Database,
   Egg,
+  FolderTree,
   Gamepad2,
   Gift,
   LayoutGrid,
@@ -109,6 +110,14 @@ const adminNav: NavItem[] = [
     icon: Database,
     area: 'admin',
     permission: 'admin.databases.manage',
+  },
+  {
+    id: 'admin-mounts',
+    label: 'Mounts',
+    to: '/admin/mounts',
+    icon: FolderTree,
+    area: 'admin',
+    permission: 'admin.mounts.manage',
   },
   {
     id: 'admin-eggs',

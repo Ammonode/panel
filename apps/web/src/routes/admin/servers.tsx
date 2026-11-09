@@ -4,6 +4,7 @@ import { ExternalLink, Plus, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, CardHeader, cn, Empty, Field, Input, Modal, Pill, Toggle } from '../../components/ui'
 import { api, formatDate } from '../../lib/api'
+import { ServerMountsCard } from './content'
 
 const selectClass = 'h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-sm'
 
@@ -791,6 +792,9 @@ function EditServer({ id }: { id: string }) {
           )}
           <div className="md:col-span-3">
             <TransferCard serverId={s.id} currentNodeId={s.node.id} status={s.status} onDone={refresh} />
+            <div className="mt-4">
+              <ServerMountsCard serverId={s.id} />
+            </div>
           </div>
         </div>
       )}
