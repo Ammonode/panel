@@ -1,16 +1,20 @@
 import { Hono } from 'hono'
 import { secureHeaders } from 'hono/secure-headers'
 import { config } from '../config'
+import { getExtension } from '../extensions/registry'
 import { HttpError } from '../lib/errors'
 import { getSettings } from '../lib/settings'
 import { authenticate } from './middleware/auth'
 import { accountRoutes } from './routes/account'
+import { adminBillingRoutes } from './routes/admin/billing'
 import { adminPanelRoutes } from './routes/admin/panel'
 import { adminServerRoutes } from './routes/admin/servers'
 import { authRoutes } from './routes/auth'
+import { billingRoutes } from './routes/billing'
 import { clientRoutes } from './routes/client'
 import { clientServerRoutes } from './routes/client-server'
 import { remoteRoutes } from './routes/remote'
+import { storeRoutes } from './routes/store'
 import type { AppEnv } from './types'
 
 export const api = new Hono<AppEnv>()
@@ -32,8 +36,11 @@ export const api = new Hono<AppEnv>()
   .route('/account', accountRoutes)
   .route('/client', clientRoutes)
   .route('/client/servers', clientServerRoutes)
+  .route('/client', billingRoutes)
+  .route('/store', storeRoutes)
   .route('/admin', adminPanelRoutes)
   .route('/admin', adminServerRoutes)
+  .route('/admin', adminBillingRoutes)
 
 export type Api = typeof api
 
@@ -44,11 +51,25 @@ export function createApp() {
   // Basic CSRF protection for cookie authenticated requests.
   app.use('/api/*', async (c, next) => {
     const method = c.req.method
-    if (method !== 'GET' && method !== 'HEAD' && !c.req.header('authorization')) {
+    if (
+      method !== 'GET' &&
+      method !== 'HEAD' &&
+      !c.req.header('authorization') &&
+      !c.req.path.startsWith('/api/extensions/')
+    ) {
       const origin = c.req.header('origin')
       if (origin && origin !== config.url && !config.isDev) throw new HttpError(403, 'Invalid origin', 'csrf')
     }
     await next()
+  })
+
+  // Extension endpoints (payment webhooks, return URLs). Extensions verify requests themselves.
+  app.all('/api/extensions/:id/*', async (c) => {
+    const ext = getExtension(c.req.param('id'))
+    if (!ext?.enabled || !ext.routeHandler)
+      return c.json({ error: { code: 'not_found', message: 'Route not found' } }, 404)
+    const path = c.req.path.slice(`/api/extensions/${c.req.param('id')}`.length) || '/'
+    return ext.routeHandler(c.req.raw, path)
   })
 
   // Daemon endpoints use node tokens, not sessions.

@@ -1,7 +1,14 @@
 import { join } from 'node:path'
 import { serveStatic } from 'hono/bun'
 import { config } from './config'
+import { loadExtensions } from './extensions/registry'
 import { createApp } from './http/app'
+import { registerBillingJobs } from './services/billing/jobs'
+import { startScheduler } from './services/scheduler'
+
+await loadExtensions()
+registerBillingJobs()
+startScheduler()
 
 const app = createApp()
 
