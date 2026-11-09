@@ -46,11 +46,18 @@ export const adminServerEditRoutes = new Hono<AppEnv>()
   .post(
     '/servers/:id/transfer',
     requirePermission('admin.servers.manage'),
-    validate('json', z.object({ nodeId: z.number().int(), allocationId: z.number().int() })),
+    validate(
+      'json',
+      z.object({
+        nodeId: z.number().int(),
+        allocationId: z.number().int(),
+        additionalAllocationIds: z.array(z.number().int()).max(100).default([]),
+      }),
+    ),
     async (c) => {
       const { server } = await load(c.req.param('id'))
-      const { nodeId, allocationId } = c.req.valid('json')
-      await startTransfer(server.id, nodeId, allocationId, c.get('user')!.id)
+      const { nodeId, allocationId, additionalAllocationIds } = c.req.valid('json')
+      await startTransfer(server.id, nodeId, allocationId, c.get('user')!.id, additionalAllocationIds)
       return c.json({ ok: true }, 202)
     },
   )

@@ -791,7 +791,13 @@ function EditServer({ id }: { id: string }) {
             <p className="text-[13px] text-danger md:col-span-3">{action.error.message}</p>
           )}
           <div className="md:col-span-3">
-            <TransferCard serverId={s.id} currentNodeId={s.node.id} status={s.status} onDone={refresh} />
+            <TransferCard
+              serverId={s.id}
+              currentNodeId={s.node.id}
+              extraCount={s.allocations.filter((a) => a.id !== s.allocationId).length}
+              status={s.status}
+              onDone={refresh}
+            />
             <div className="mt-4">
               <ServerMountsCard serverId={s.id} />
             </div>
@@ -845,11 +851,14 @@ type Transfer = {
 function TransferCard({
   serverId,
   currentNodeId,
+  extraCount,
   status,
   onDone,
 }: {
   serverId: number
   currentNodeId: number
+  /** Extra (non primary) ports the server has now. */
+  extraCount: number
   status: string | null
   onDone: () => void
 }) {
@@ -873,9 +882,16 @@ function TransferCard({
   })
   const free = ports.data?.data.filter((a) => !a.serverId) ?? []
   const [port, setPort] = useState(0)
+  const primary = port || free[0]?.id || 0
+  // Extra ports to take along, like the primary one chosen on the target node.
+  const [extra, setExtra] = useState<number[]>([])
   const start = useMutation({
     mutationFn: () =>
-      api.post(`/admin/servers/${serverId}/transfer`, { nodeId: target, allocationId: port || free[0]?.id }),
+      api.post(`/admin/servers/${serverId}/transfer`, {
+        nodeId: target,
+        allocationId: primary,
+        additionalAllocationIds: extra.filter((id) => id !== primary),
+      }),
     onSuccess: () => {
       last.refetch()
       onDone()
@@ -909,6 +925,7 @@ function TransferCard({
                 onChange={(e) => {
                   setNodeId(Number(e.target.value))
                   setPort(0)
+                  setExtra([])
                 }}
               >
                 {targets.map((n) => (
@@ -938,6 +955,42 @@ function TransferCard({
             >
               Start transfer
             </Button>
+            {free.length > 1 && (
+              <div className="w-full">
+                <p className="mb-1.5 text-[13px] font-medium">
+                  Extra ports on the new node{' '}
+                  <span className="font-normal text-muted">
+                    ({extraCount} on the current node, {extra.filter((id) => id !== primary).length} selected)
+                  </span>
+                </p>
+                <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
+                  {free
+                    .filter((a) => a.id !== primary)
+                    .map((a) => {
+                      const on = extra.includes(a.id)
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => setExtra((x) => (on ? x.filter((id) => id !== a.id) : [...x, a.id]))}
+                          className={`rounded-[8px] border px-2.5 py-1 text-xs ${
+                            on
+                              ? 'border-primary bg-primary text-primary-fg'
+                              : 'border-line hover:bg-surface-2'
+                          }`}
+                        >
+                          {a.ipAlias ?? a.ip}:{a.port}
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+            )}
+            <p className="w-full text-xs text-muted">
+              Backups stored on the node are copied along. Ports not selected here are released on the old
+              node.
+            </p>
           </>
         )}
         {start.error && <p className="w-full text-[13px] text-danger">{start.error.message}</p>}

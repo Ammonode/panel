@@ -1,0 +1,1 @@
+ALTER TABLE "server_transfers" ADD COLUMN "new_additional_allocation_ids" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { db, schema } from '../db'
 import { logActivity } from '../lib/activity'
 import { HttpError } from '../lib/errors'
@@ -6,14 +6,16 @@ import { daemonRequest, signDaemonToken } from './daemon'
 
 /**
  * Moves a server to another node. The target is prepared first, then the
- * source streams an archive to it. The server only switches nodes once the
- * target confirms; any failure leaves it on the original node.
+ * source streams its local backups and an archive of the files to it. The
+ * server only switches nodes once the target confirms; any failure leaves it
+ * on the original node.
  */
 export async function startTransfer(
   serverId: number,
   newNodeId: number,
   newAllocationId: number,
   actorId: number,
+  additionalAllocationIds: number[] = [],
 ) {
   const server = await db.query.servers.findFirst({ where: eq(schema.servers.id, serverId) })
   if (!server) throw new HttpError(404, 'Server not found', 'not_found')
@@ -48,20 +50,24 @@ export async function startTransfer(
   const oldAllocations = await db.query.allocations.findMany({
     where: eq(schema.allocations.serverId, server.id),
   })
-  // Reserve the new primary port and mark the server as transferring.
+  const extra = [...new Set(additionalAllocationIds)].filter((id) => id !== newAllocationId)
+  // Reserve the new ports and mark the server as transferring.
   const transfer = await db.transaction(async (tx) => {
+    const wanted = [newAllocationId, ...extra]
     const claimed = await tx
       .update(schema.allocations)
       .set({ serverId: server.id })
       .where(
         and(
-          eq(schema.allocations.id, newAllocationId),
+          inArray(schema.allocations.id, wanted),
           eq(schema.allocations.nodeId, newNode.id),
           isNull(schema.allocations.serverId),
         ),
       )
       .returning()
-    if (!claimed.length) throw new HttpError(422, 'That port is not free on the target node', 'invalid')
+    // Throwing rolls the whole claim back.
+    if (claimed.length !== wanted.length)
+      throw new HttpError(422, 'One of the selected ports is not free on the target node', 'invalid')
     await tx.update(schema.servers).set({ status: 'transferring' }).where(eq(schema.servers.id, server.id))
     const [t] = await tx
       .insert(schema.serverTransfers)
@@ -71,9 +77,16 @@ export async function startTransfer(
         newNodeId: newNode.id,
         oldAllocationIds: oldAllocations.map((a) => a.id),
         newAllocationId,
+        newAdditionalAllocationIds: extra,
       })
       .returning()
     return t!
+  })
+
+  // Backups stored on the node travel with the server; S3 backups stay where they are.
+  const localBackups = await db.query.backups.findMany({
+    where: and(eq(schema.backups.serverId, server.id), eq(schema.backups.disk, 'local')),
+    columns: { uuid: true, isSuccessful: true },
   })
 
   try {
@@ -82,6 +95,7 @@ export async function startTransfer(
     await daemonRequest(oldNode, 'POST', `/api/servers/${server.uuid}/transfer`, {
       url: `${newNode.scheme}://${newNode.fqdn}:${newNode.daemonListen}/api/transfers/receive`,
       token,
+      backups: localBackups.filter((b) => b.isSuccessful).map((b) => b.uuid),
     })
   } catch (e) {
     await finishTransfer(server.uuid, false, (e as Error).message)
@@ -115,7 +129,8 @@ export async function finishTransfer(serverUuid: string, successful: boolean, er
 
   if (successful) {
     await db.transaction(async (tx) => {
-      // Ports of the old node are released; the reserved port becomes primary.
+      // Ports of the old node are released; the reserved ports (already
+      // assigned to the server) take over, the chosen one as primary.
       for (const id of transfer.oldAllocationIds)
         await tx
           .update(schema.allocations)
@@ -131,10 +146,18 @@ export async function finishTransfer(serverUuid: string, successful: boolean, er
         .where(eq(schema.serverTransfers.id, transfer.id))
     })
     if (newNode) await daemonRequest(newNode, 'POST', `/api/servers/${server.uuid}/sync`).catch(() => {})
-    if (oldNode)
+    if (oldNode) {
+      // The copies now live on the new node; free the space on the old one.
+      const local = await db.query.backups.findMany({
+        where: and(eq(schema.backups.serverId, server.id), eq(schema.backups.disk, 'local')),
+        columns: { uuid: true },
+      })
+      for (const b of local)
+        await daemonRequest(oldNode, 'DELETE', `/api/servers/${server.uuid}/backup/${b.uuid}`).catch(() => {})
       await daemonRequest(oldNode, 'DELETE', `/api/servers/${server.uuid}`).catch((e) =>
         console.error('could not remove transferred server from old node:', e.message),
       )
+    }
   } else {
     await db.transaction(async (tx) => {
       await tx
@@ -142,7 +165,10 @@ export async function finishTransfer(serverUuid: string, successful: boolean, er
         .set({ serverId: null })
         .where(
           and(
-            eq(schema.allocations.id, transfer.newAllocationId),
+            inArray(schema.allocations.id, [
+              transfer.newAllocationId,
+              ...(transfer.newAdditionalAllocationIds ?? []),
+            ]),
             eq(schema.allocations.serverId, server.id),
           ),
         )

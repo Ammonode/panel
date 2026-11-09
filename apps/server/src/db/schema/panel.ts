@@ -323,6 +323,10 @@ export const serverTransfers = pgTable(
     newNodeId: integer('new_node_id').notNull(),
     oldAllocationIds: jsonb('old_allocation_ids').$type<number[]>().notNull().default([]),
     newAllocationId: integer('new_allocation_id').notNull(),
+    newAdditionalAllocationIds: jsonb('new_additional_allocation_ids')
+      .$type<number[]>()
+      .notNull()
+      .default([]),
     // null = running, true = done, false = failed
     successful: boolean('successful'),
     error: text('error'),
