@@ -130,7 +130,7 @@ function TemplatesCard() {
         .post<{ data: { subject: string; html: string } }>(`/admin/email-templates/${current!.key}/preview`)
         .then((r) => r.data),
   })
-  // biome-ignore lint/correctness/useExhaustiveDependencies: refresh preview when switching templates
+  // Refresh the preview when switching templates.
   useEffect(() => {
     if (current) preview.mutate()
   }, [current?.key])

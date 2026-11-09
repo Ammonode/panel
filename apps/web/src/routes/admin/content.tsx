@@ -210,3 +210,50 @@ export function AdminAnnouncementsPage() {
     </Card>
   )
 }
+
+const BACKUP_MASK = '••••••••'
+/** Where backups are stored: on the nodes or in an S3 compatible bucket. */
+export function BackupStorageCard() {
+  const { data } = useQuery({ queryKey: ['admin', 'backup-storage'], queryFn: () => api.get<{ data: Record<string, string | boolean> }>('/admin/backup-storage').then((r) => r.data) })
+  const [form, setForm] = useState<Record<string, string | boolean> | null>(null)
+  const v = form ?? data ?? {}
+  const set = (k: string, val: string | boolean) => setForm({ ...v, [k]: val })
+  const save = useMutation({ mutationFn: () => api.put('/admin/backup-storage', { ...v, 'backups.s3_path_style': !!v['backups.s3_path_style'] }) })
+  const test = useMutation({ mutationFn: async () => { await save.mutateAsync(); return api.post('/admin/backup-storage/test') } })
+  const s3 = v['backups.driver'] === 's3'
+  const text = (k: string, label: string, hint?: string, type = 'text') => (
+    <Field label={label} hint={hint}><Input type={type} value={String(v[k] ?? '')} autoComplete="off" onChange={(e) => set(k, e.target.value)} /></Field>
+  )
+  return (
+    <Card>
+      <CardHeader title="Backup storage" subtitle="S3 keeps backups off the nodes. Nodes never receive your S3 keys, only short lived upload links." />
+      <div className="grid gap-4 px-5 pb-5 md:grid-cols-2">
+        <Field label="Store backups">
+          <select className="h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-sm" value={String(v['backups.driver'] ?? 'local')} onChange={(e) => set('backups.driver', e.target.value)}>
+            <option value="local">On the node</option>
+            <option value="s3">S3 compatible storage</option>
+          </select>
+        </Field>
+        <span />
+        {s3 && (
+          <>
+            {text('backups.s3_endpoint', 'Endpoint', 'Empty for AWS. e.g. https://s3.eu-central-003.backblazeb2.com')}
+            {text('backups.s3_region', 'Region')}
+            {text('backups.s3_bucket', 'Bucket')}
+            {text('backups.s3_prefix', 'Folder prefix')}
+            {text('backups.s3_access_key', 'Access key')}
+            {text('backups.s3_secret_key', 'Secret key', v['backups.s3_secret_key'] === BACKUP_MASK ? 'Saved, leave as is to keep it' : undefined, 'password')}
+            <span className="flex items-center gap-3 text-[13px]"><Toggle checked={!!v['backups.s3_path_style']} onChange={(x) => set('backups.s3_path_style', x)} label="Path style" /> Path-style URLs (MinIO and most self-hosted stores)</span>
+          </>
+        )}
+        <div className="flex items-center justify-end gap-3 md:col-span-2">
+          {(save.error || test.error) && <span className="text-[13px] text-danger">{(test.error ?? save.error)?.message}</span>}
+          {test.isSuccess && <span className="text-[13px] text-success">Connection works</span>}
+          {save.isSuccess && !test.isSuccess && <span className="text-[13px] text-success">Saved</span>}
+          {s3 && <Button variant="outline" loading={test.isPending} onClick={() => test.mutate()}>Save and test</Button>}
+          <Button loading={save.isPending} onClick={() => save.mutate()}>Save</Button>
+        </div>
+      </div>
+    </Card>
+  )
+}
