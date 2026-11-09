@@ -49,16 +49,14 @@ export async function checkout(
           })
           .returning()
         if (line.configs.length) {
-          await tx
-            .insert(schema.serviceConfigs)
-            .values(
-              line.configs.map((c) => ({
-                serviceId: service!.id,
-                configOptionId: c.optionId,
-                configValueId: c.valueId,
-                value: c.value,
-              })),
-            )
+          await tx.insert(schema.serviceConfigs).values(
+            line.configs.map((c) => ({
+              serviceId: service!.id,
+              configOptionId: c.optionId,
+              configValueId: c.valueId,
+              value: c.value,
+            })),
+          )
         }
         const details = line.configs.length ? `\n${line.configs.map((c) => c.label).join('\n')}` : ''
         items.push({

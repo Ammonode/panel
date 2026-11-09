@@ -79,16 +79,14 @@ async function syncPlans(tx: Tx, type: 'product' | 'config_option', priceableId:
     else planId = (await tx.insert(schema.plans).values(values).returning({ id: schema.plans.id }))[0]!.id
     await tx.delete(schema.prices).where(eq(schema.prices.planId, planId))
     if (p.type !== 'free' && p.prices.length) {
-      await tx
-        .insert(schema.prices)
-        .values(
-          p.prices.map((x) => ({
-            planId: planId!,
-            currencyCode: x.currency.toUpperCase(),
-            price: x.price,
-            setupFee: x.setupFee,
-          })),
-        )
+      await tx.insert(schema.prices).values(
+        p.prices.map((x) => ({
+          planId: planId!,
+          currencyCode: x.currency.toUpperCase(),
+          price: x.price,
+          setupFee: x.setupFee,
+        })),
+      )
     }
   }
 }
