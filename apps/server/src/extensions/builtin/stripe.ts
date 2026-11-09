@@ -145,6 +145,13 @@ export const extension: ServerExtension = {
       })
       return { redirect: session.url }
     },
+    async refund(ctx) {
+      const secret = String(ctx.settings.secret_key ?? '')
+      await stripe(secret, 'POST', '/refunds', {
+        [ctx.transactionId.startsWith('pi_') ? 'payment_intent' : 'charge']: ctx.transactionId,
+        amount: toMinor(ctx.amount.amount, ctx.amount.currency),
+      })
+    },
   },
   register(api) {
     api.routes(async (request, path) => {

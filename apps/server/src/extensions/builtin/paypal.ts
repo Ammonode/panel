@@ -145,6 +145,16 @@ export const extension: ServerExtension = {
       if (!approve) throw new Error('PayPal did not return an approval link')
       return { redirect: approve.href }
     },
+    async refund(ctx) {
+      await paypal(
+        ctx.settings,
+        'POST',
+        `/v2/payments/captures/${encodeURIComponent(ctx.transactionId)}/refund`,
+        {
+          amount: { value: Number(ctx.amount.amount).toFixed(2), currency_code: ctx.amount.currency },
+        },
+      )
+    },
   },
   register(api) {
     api.routes(async (request, path) => {

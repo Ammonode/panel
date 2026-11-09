@@ -14,6 +14,7 @@ import {
   unsuspendService,
 } from '../../../services/billing/lifecycle'
 import { fromCents, toCents } from '../../../services/billing/money'
+import { refundTransaction } from '../../../services/billing/refunds'
 import { clientIp, requirePermission } from '../../middleware/auth'
 import type { AppEnv } from '../../types'
 import { onlyProvided, validate } from '../../validate'
@@ -583,7 +584,24 @@ export const adminBillingRoutes = new Hono<AppEnv>()
   .get('/invoices/:id', requirePermission('admin.invoices.view'), async (c) => {
     const invoice = await invoiceWithItems(intId(c.req.param('id')))
     if (!invoice) throw notFound('Invoice')
-    return c.json({ data: invoice })
+    const user = await db.query.users.findFirst({ where: eq(schema.users.id, invoice.userId) })
+    return c.json({
+      data: invoice,
+      billing: {
+        company: await getSettings(['billing.company_details']).then((s) =>
+          String(s['billing.company_details'] ?? ''),
+        ),
+        companyName: await getSettings(['app.name']).then((s) => String(s['app.name'])),
+        customer: user
+          ? {
+              id: user.id,
+              name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username,
+              email: user.email,
+              country: (user.properties.country as string) ?? null,
+            }
+          : null,
+      },
+    })
   })
   .post(
     '/invoices/:id/payment',
@@ -611,6 +629,20 @@ export const adminBillingRoutes = new Hono<AppEnv>()
         subject: { type: 'invoice', id },
         properties: v,
       })
+      return c.json({ ok: true })
+    },
+  )
+  .post(
+    '/invoices/:id/transactions/:transaction/refund',
+    requirePermission('admin.invoices.manage'),
+    validate('json', z.object({ amount: money, method: z.enum(['gateway', 'credit', 'manual']) })),
+    async (c) => {
+      const { amount, method } = c.req.valid('json')
+      const tx = await db.query.invoiceTransactions.findFirst({
+        where: eq(schema.invoiceTransactions.id, intId(c.req.param('transaction'))),
+      })
+      if (!tx || tx.invoiceId !== intId(c.req.param('id'))) throw notFound('Payment')
+      await refundTransaction(tx.id, amount, method, c.get('user')!.id)
       return c.json({ ok: true })
     },
   )

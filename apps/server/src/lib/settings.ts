@@ -35,6 +35,7 @@ export const defaultSettings = {
   'mail.from_address': '' as string,
   'mail.from_name': '' as string,
   'app.support_email': '' as string,
+  'billing.company_details': '' as string,
 }
 
 export type SettingKey = keyof typeof defaultSettings

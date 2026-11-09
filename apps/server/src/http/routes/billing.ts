@@ -250,7 +250,19 @@ export const billingRoutes = new Hono<AppEnv>()
   .get('/invoices/:id', async (c) => {
     const invoice = await invoiceWithItems(intId(c.req.param('id')))
     if (!invoice || invoice.userId !== c.get('user')!.id) throw notFound('Invoice')
-    return c.json({ data: invoice })
+    const user = c.get('user')!
+    return c.json({
+      data: invoice,
+      billing: {
+        company: await getSetting('billing.company_details'),
+        companyName: await getSetting('app.name'),
+        customer: {
+          name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username,
+          email: user.email,
+          country: (user.properties.country as string) ?? null,
+        },
+      },
+    })
   })
   .post('/invoices/:id/pay', validate('json', z.object({ gateway: z.string() })), async (c) => {
     const user = c.get('user')!
