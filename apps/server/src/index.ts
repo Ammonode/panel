@@ -5,9 +5,11 @@ import { loadExtensions } from './extensions/registry'
 import { createApp } from './http/app'
 import { registerBillingJobs } from './services/billing/jobs'
 import { startScheduler } from './services/scheduler'
+import { registerScheduleRunner } from './services/schedules'
 
 await loadExtensions()
 registerBillingJobs()
+registerScheduleRunner()
 startScheduler()
 
 const app = createApp()
