@@ -21,6 +21,7 @@ import { AdminDatabaseHostsPage, AdminLocationsPage, AdminNodesPage } from './ro
 import { AdminOverviewPage } from './routes/admin/overview'
 import { AdminConfigOptionsPage, AdminProductEditPage, AdminProductsPage } from './routes/admin/products'
 import { AdminServerPage, AdminServersPage } from './routes/admin/servers'
+import { AdminTicketPage, AdminTicketsPage } from './routes/admin/tickets'
 import { AdminRolesPage, AdminUserPage, AdminUsersPage } from './routes/admin/users'
 import {
   ForgotPasswordPage,
@@ -41,6 +42,7 @@ import { ActivityPage, BackupsPage, DatabasesPage, SchedulesPage, UsersPage } fr
 import { NetworkPage, SettingsPage } from './routes/server/settings'
 import { StartupPage } from './routes/server/startup'
 import { PlaceholderPage, ServersPage } from './routes/servers'
+import { NewTicketPage, TicketPage, TicketsPage } from './routes/tickets'
 
 const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({ component: Outlet })
 
@@ -115,7 +117,9 @@ const routeTree = root.addChildren([
     page('/invoices', InvoicesPage),
     page('/invoices/$id', InvoicePage),
     page('/credits', CreditsPage),
-    placeholder('/tickets', 'Support'),
+    page('/tickets', TicketsPage),
+    page('/tickets/new', NewTicketPage),
+    page('/tickets/$id', TicketPage),
     placeholder('/account', 'Account'),
     placeholder('/account/security', 'Security'),
     placeholder('/help', 'Help'),
@@ -135,7 +139,8 @@ const routeTree = root.addChildren([
     page('/admin/coupons', AdminCouponsPage),
     page('/admin/services', AdminServicesPage),
     page('/admin/invoices', AdminInvoicesPage),
-    placeholder('/admin/tickets', 'Tickets'),
+    page('/admin/tickets', AdminTicketsPage),
+    page('/admin/tickets/$id', AdminTicketPage),
     page('/admin/extensions', AdminExtensionsPage),
     page('/admin/settings', AdminSettingsPage),
     page('/admin/settings/email', AdminMailPage),

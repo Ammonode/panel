@@ -136,7 +136,7 @@ export function DashboardPage() {
           <CardHeader
             title="Recent support tickets"
             action={
-              <Button variant="outline" onClick={() => navigate({ to: '/tickets' })}>
+              <Button variant="outline" onClick={() => navigate({ to: '/tickets/new' })}>
                 Create a ticket <CirclePlus className="size-[18px] stroke-[1.6]" />
               </Button>
             }
@@ -148,7 +148,8 @@ export function DashboardPage() {
             {data?.tickets.map((t) => (
               <Link
                 key={t.id}
-                to="/tickets"
+                to="/tickets/$id"
+                params={{ id: String(t.id) }}
                 className="flex items-center gap-4 rounded-[12px] border border-line bg-surface-2 px-4 py-3 hover:border-subtle"
               >
                 <span className="w-10 border-r border-line text-xs text-muted">#{t.id}</span>
