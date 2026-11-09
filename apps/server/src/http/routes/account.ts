@@ -25,12 +25,18 @@ export const accountRoutes = new Hono<AppEnv>()
         lastName: z.string().max(64).nullable().optional(),
         language: z.string().max(8).optional(),
         theme: z.enum(['system', 'light', 'dark']).optional(),
+        // ISO country code, used for taxes.
+        country: z.string().length(2).regex(/^[A-Za-z]{2}$/).nullable().optional(),
       }),
     ),
     async (c) => {
+      const { country, ...fields } = c.req.valid('json')
+      const me = c.get('user')!
+      const values: Partial<typeof schema.users.$inferInsert> = { ...fields }
+      if (country !== undefined) values.properties = { ...me.properties, country: country?.toUpperCase() ?? undefined }
       const [user] = await db
         .update(schema.users)
-        .set(c.req.valid('json'))
+        .set(values)
         .where(eq(schema.users.id, c.get('user')!.id))
         .returning()
       return c.json({ user: serializeUser(user!, c.get('permissions')) })

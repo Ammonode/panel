@@ -9,6 +9,7 @@ export const serializeUser = (u: User, permissions: string[] = []) => ({
   lastName: u.lastName,
   language: u.language,
   theme: u.theme,
+  country: (u.properties.country as string | undefined) ?? null,
   credits: u.credits,
   emailVerified: !!u.emailVerifiedAt,
   twoFactorEnabled: !!u.totpEnabledAt,
