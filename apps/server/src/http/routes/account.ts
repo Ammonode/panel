@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, ne } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db, schema } from '../../db'
@@ -218,6 +218,26 @@ export const accountRoutes = new Hono<AppEnv>()
   })
 
   // Sessions
+  // Sign out one session (by the id prefix shown in the list) or every other session.
+  .delete('/sessions/:id', async (c) => {
+    const user = c.get('user')!
+    const prefix = c.req.param('id')
+    if (!/^[a-f0-9]{12}$/.test(prefix)) throw notFound('Session')
+    const rows = await db.query.sessions.findMany({ where: eq(schema.sessions.userId, user.id) })
+    const target = rows.find((r) => r.id.startsWith(prefix))
+    if (!target) throw notFound('Session')
+    await db.delete(schema.sessions).where(eq(schema.sessions.id, target.id))
+    return c.json({ ok: true })
+  })
+  .delete('/sessions', async (c) => {
+    const user = c.get('user')!
+    const current = c.get('session')?.id ?? ''
+    await db
+      .delete(schema.sessions)
+      .where(and(eq(schema.sessions.userId, user.id), ne(schema.sessions.id, current)))
+    await logActivity({ event: 'user:sessions.revoked', actorId: user.id, ip: clientIp(c) })
+    return c.json({ ok: true })
+  })
   .get('/sessions', async (c) => {
     const rows = await db.query.sessions.findMany({
       where: eq(schema.sessions.userId, c.get('user')!.id),

@@ -23,6 +23,7 @@ import { clientRoutes } from './routes/client'
 import { clientServerRoutes } from './routes/client-server'
 import { clientServerExtraRoutes } from './routes/client-server-extra'
 import { extensionAssetRoutes } from './routes/extension-assets'
+import { accountOAuthRoutes, adminOAuthRoutes, oauthRoutes } from './routes/oauth'
 import { remoteRoutes } from './routes/remote'
 import { storeRoutes } from './routes/store'
 import { adminTicketRoutes, clientTicketRoutes } from './routes/tickets'
@@ -49,6 +50,8 @@ export const api = new Hono<AppEnv>()
   .get('/ui/extensions', (c) => c.json({ data: publicExtensionAssets() }))
   .route('/auth', authRoutes)
   .route('/auth', impersonationRoutes)
+  .route('/auth', oauthRoutes)
+  .route('/account/oauth', accountOAuthRoutes)
   .route('/account', accountRoutes)
   .route('/client', clientRoutes)
   .route('/client/servers', clientServerRoutes)
@@ -70,6 +73,7 @@ export const api = new Hono<AppEnv>()
   .route('/admin', adminBrandingRoutes)
   .route('/admin', adminEggRoutes)
   .route('/admin', adminBackupStorageRoutes)
+  .route('/admin', adminOAuthRoutes)
   .route('/admin', adminNodeExtraRoutes)
 
 export type Api = typeof api
