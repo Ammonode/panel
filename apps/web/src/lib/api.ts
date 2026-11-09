@@ -65,6 +65,7 @@ export type User = {
   firstName: string | null
   lastName: string | null
   theme: 'system' | 'light' | 'dark'
+  country: string | null
   credits: Record<string, string>
   twoFactorEnabled: boolean
   emailVerified: boolean

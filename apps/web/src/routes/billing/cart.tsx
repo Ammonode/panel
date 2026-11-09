@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Button, Card, CardHeader, Empty, Input } from '../../components/ui'
 import { api, formatMoney } from '../../lib/api'
 import { cart, toApiItems, useCart } from '../../lib/cart'
+import { useCurrency } from '../../lib/currency'
 
 type Priced = {
   currency: string
@@ -27,15 +28,20 @@ type Priced = {
 }
 
 export function CartPage() {
+  const [currency] = useCurrency()
   const items = useCart()
   const navigate = useNavigate()
   const [couponInput, setCouponInput] = useState('')
   const [coupon, setCoupon] = useState<string | null>(null)
   const priced = useQuery({
-    queryKey: ['cart', items, coupon],
+    queryKey: ['cart', items, coupon, currency],
     enabled: items.length > 0,
     queryFn: () =>
-      api.post<{ data: Priced }>('/store/cart', { items: toApiItems(items), couponCode: coupon }),
+      api.post<{ data: Priced }>('/store/cart', {
+        items: toApiItems(items),
+        couponCode: coupon,
+        currency: currency || undefined,
+      }),
     retry: false,
   })
   const order = useMutation({
@@ -43,6 +49,7 @@ export function CartPage() {
       api.post<{ data: { invoiceId: number; free: boolean } }>('/client/checkout', {
         items: toApiItems(items),
         couponCode: coupon,
+        currency: currency || undefined,
       }),
     onSuccess: ({ data }) => {
       cart.clear()

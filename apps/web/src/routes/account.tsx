@@ -13,12 +13,17 @@ function ProfileCard() {
   const user = useUser()!
   const qc = useQueryClient()
   const { mode, setMode } = useThemeMode()
-  const [form, setForm] = useState({ firstName: user.firstName ?? '', lastName: user.lastName ?? '' })
+  const [form, setForm] = useState({
+    firstName: user.firstName ?? '',
+    lastName: user.lastName ?? '',
+    country: user.country ?? '',
+  })
   const save = useMutation({
     mutationFn: () =>
       api.patch('/account', {
         firstName: form.firstName || null,
         lastName: form.lastName || null,
+        country: form.country || null,
         theme: mode,
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['me'] }),
@@ -38,6 +43,13 @@ function ProfileCard() {
         </Field>
         <Field label="Last name">
           <Input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+        </Field>
+        <Field label="Country" hint="Two letter code, e.g. ID or DE. Used for taxes.">
+          <Input
+            maxLength={2}
+            value={form.country}
+            onChange={(e) => setForm({ ...form, country: e.target.value.toUpperCase() })}
+          />
         </Field>
         <Field label="Appearance">
           <select className={selectClass} value={mode} onChange={(e) => setMode(e.target.value as ThemeMode)}>

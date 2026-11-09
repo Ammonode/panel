@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, CardHeader, cn, Empty, Field, IconTile, Input, Pill } from '../../components/ui'
 import { api, formatMoney } from '../../lib/api'
 import { cart, useCart } from '../../lib/cart'
+import { CurrencySelect, currencyQuery, useCurrency } from '../../lib/currency'
 
 export type Plan = {
   id: number
@@ -69,6 +70,15 @@ export function StorePage() {
 }
 
 export function CartButton() {
+  return (
+    <span className="flex gap-2">
+      <CurrencySelect />
+      <CartLink />
+    </span>
+  )
+}
+
+function CartLink() {
   const items = useCart()
   return (
     <Link
@@ -86,12 +96,13 @@ export function CartButton() {
 const cheapest = (plans: Plan[]) => [...plans].sort((a, b) => Number(a.price) - Number(b.price))[0]
 
 export function CategoryPage() {
+  const [currency] = useCurrency()
   const { category } = useParams({ strict: false }) as { category: string }
   const { data, error } = useQuery({
-    queryKey: ['store', 'category', category],
+    queryKey: ['store', 'category', category, currency],
     queryFn: () =>
       api.get<{ category: Category; currency: { code: string }; data: Product[] }>(
-        `/store/categories/${category}`,
+        `/store/categories/${category}${currencyQuery(currency)}`,
       ),
   })
   if (error)
@@ -150,15 +161,16 @@ export function CategoryPage() {
 }
 
 export function ProductPage() {
+  const [selectedCurrency] = useCurrency()
   const { slug } = useParams({ strict: false }) as { slug: string }
   const navigate = useNavigate()
   const { data, error } = useQuery({
-    queryKey: ['store', 'product', slug],
+    queryKey: ['store', 'product', slug, selectedCurrency],
     queryFn: () =>
       api.get<{
         currency: { code: string }
         data: Product & { configOptions: Option[]; checkoutFields: CheckoutField[]; allowQuantity: string }
-      }>(`/store/products/${slug}`),
+      }>(`/store/products/${slug}${currencyQuery(selectedCurrency)}`),
   })
   const product = data?.data
   const [planId, setPlanId] = useState<number | null>(null)
@@ -188,12 +200,12 @@ export function ProductPage() {
     [product, planId, options, fields],
   )
   const preview = useQuery({
-    queryKey: ['store', 'preview', item],
+    queryKey: ['store', 'preview', item, selectedCurrency],
     enabled: !!item,
     queryFn: () =>
       api.post<{ data: { total: string; subtotal: string; lines: { price: string; setupFee: string }[] } }>(
         '/store/cart',
-        { items: [item] },
+        { items: [item], currency: selectedCurrency || undefined },
       ),
     placeholderData: (prev) => prev,
   })

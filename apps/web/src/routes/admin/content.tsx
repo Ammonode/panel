@@ -390,3 +390,174 @@ export function OAuthCard() {
     </Card>
   )
 }
+
+type Currency = { code: string; prefix: string; suffix: string; rate: string; isDefault: boolean }
+type TaxRate = { id: number; name: string; rate: string; country: string | null }
+
+/** Currencies with exchange rates, and tax rates per country. */
+export function CurrenciesTaxCard() {
+  const qc = useQueryClient()
+  const currencies = useQuery({
+    queryKey: ['admin', 'currencies'],
+    queryFn: () => api.get<{ data: Currency[] }>('/admin/currencies').then((r) => r.data),
+  })
+  const taxes = useQuery({
+    queryKey: ['admin', 'tax-rates'],
+    queryFn: () => api.get<{ data: TaxRate[] }>('/admin/tax-rates').then((r) => r.data),
+  })
+  const [cur, setCur] = useState({ code: '', rate: '1', prefix: '', isDefault: false })
+  const [tax, setTax] = useState({ name: 'VAT', rate: '', country: '' })
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['admin', 'currencies'] })
+    qc.invalidateQueries({ queryKey: ['currencies'] })
+  }
+  const saveCur = useMutation({
+    mutationFn: (c: { code: string; rate: string; prefix: string; isDefault: boolean }) =>
+      api.put(`/admin/currencies/${c.code.toUpperCase()}`, {
+        prefix: c.prefix,
+        suffix: '',
+        rate: Number(c.rate),
+        isDefault: c.isDefault,
+      }),
+    onSuccess: () => {
+      setCur({ code: '', rate: '1', prefix: '', isDefault: false })
+      refresh()
+    },
+  })
+  const addTax = useMutation({
+    mutationFn: () =>
+      api.post('/admin/tax-rates', { name: tax.name, rate: Number(tax.rate), country: tax.country || null }),
+    onSuccess: () => {
+      setTax({ name: 'VAT', rate: '', country: '' })
+      qc.invalidateQueries({ queryKey: ['admin', 'tax-rates'] })
+    },
+  })
+  const delTax = useMutation({
+    mutationFn: (id: number) => api.delete(`/admin/tax-rates/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'tax-rates'] }),
+  })
+  return (
+    <Card>
+      <CardHeader
+        title="Currencies and taxes"
+        subtitle="Prices without an amount in a currency are converted from the default currency with its rate. Turn taxes on under Settings."
+      />
+      <div className="grid gap-6 px-5 pb-5 lg:grid-cols-2">
+        <div className="space-y-2">
+          <p className="text-[13px] font-medium">Currencies</p>
+          {currencies.data?.map((c) => (
+            <div
+              key={c.code}
+              className="flex items-center gap-3 rounded-[10px] border border-line px-3 py-2 text-[13px]"
+            >
+              <span className="w-12 font-medium">{c.code}</span>
+              <span className="flex-1 text-muted">rate {Number(c.rate)}</span>
+              {c.isDefault ? (
+                <Pill tone="info">Default</Pill>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    saveCur.mutate({ code: c.code, rate: c.rate, prefix: c.prefix, isDefault: true })
+                  }
+                >
+                  Make default
+                </Button>
+              )}
+            </div>
+          ))}
+          <form
+            className="flex flex-wrap items-end gap-2 pt-1"
+            onSubmit={(e) => {
+              e.preventDefault()
+              saveCur.mutate(cur)
+            }}
+          >
+            <Field label="Code">
+              <Input
+                className="w-20"
+                maxLength={3}
+                placeholder="EUR"
+                value={cur.code}
+                onChange={(e) => setCur({ ...cur, code: e.target.value.toUpperCase() })}
+              />
+            </Field>
+            <Field label="Rate">
+              <Input
+                className="w-24"
+                type="number"
+                step="0.0001"
+                value={cur.rate}
+                onChange={(e) => setCur({ ...cur, rate: e.target.value })}
+              />
+            </Field>
+            <Button
+              type="submit"
+              variant="outline"
+              loading={saveCur.isPending}
+              disabled={cur.code.length !== 3}
+            >
+              Add
+            </Button>
+          </form>
+          {saveCur.error && <p className="text-[13px] text-danger">{saveCur.error.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <p className="text-[13px] font-medium">Tax rates</p>
+          {taxes.data?.map((t) => (
+            <div
+              key={t.id}
+              className="flex items-center gap-3 rounded-[10px] border border-line px-3 py-2 text-[13px]"
+            >
+              <span className="flex-1 font-medium">
+                {t.name} {Number(t.rate)}%
+              </span>
+              <span className="text-muted">{t.country ?? 'All countries'}</span>
+              <Button size="sm" variant="ghost" onClick={() => delTax.mutate(t.id)}>
+                Remove
+              </Button>
+            </div>
+          ))}
+          {taxes.data?.length === 0 && <p className="text-[13px] text-muted">No tax rates.</p>}
+          <form
+            className="flex flex-wrap items-end gap-2 pt-1"
+            onSubmit={(e) => {
+              e.preventDefault()
+              addTax.mutate()
+            }}
+          >
+            <Field label="Name">
+              <Input
+                className="w-24"
+                value={tax.name}
+                onChange={(e) => setTax({ ...tax, name: e.target.value })}
+              />
+            </Field>
+            <Field label="Rate %">
+              <Input
+                className="w-20"
+                type="number"
+                step="0.01"
+                value={tax.rate}
+                onChange={(e) => setTax({ ...tax, rate: e.target.value })}
+              />
+            </Field>
+            <Field label="Country" hint="Empty = all">
+              <Input
+                className="w-20"
+                maxLength={2}
+                value={tax.country}
+                onChange={(e) => setTax({ ...tax, country: e.target.value.toUpperCase() })}
+              />
+            </Field>
+            <Button type="submit" variant="outline" loading={addTax.isPending} disabled={!tax.rate}>
+              Add
+            </Button>
+          </form>
+          {addTax.error && <p className="text-[13px] text-danger">{addTax.error.message}</p>}
+        </div>
+      </div>
+    </Card>
+  )
+}
