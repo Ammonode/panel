@@ -6,7 +6,7 @@ import { getExtension, getProvisioner, listExtensions, saveExtension } from '../
 import { logActivity } from '../../../lib/activity'
 import { HttpError, notFound } from '../../../lib/errors'
 import { defaultSettings, getSettings, setSettings } from '../../../lib/settings'
-import { invoiceWithItems, markInvoicePaid } from '../../../services/billing/invoices'
+import { createInvoice, invoiceWithItems, markInvoicePaid } from '../../../services/billing/invoices'
 import {
   activateOrRenew,
   suspendService,
@@ -644,6 +644,59 @@ export const adminBillingRoutes = new Hono<AppEnv>()
       if (!tx || tx.invoiceId !== intId(c.req.param('id'))) throw notFound('Payment')
       await refundTransaction(tx.id, amount, method, c.get('user')!.id)
       return c.json({ ok: true })
+    },
+  )
+  // Manual invoice for a customer (custom work, one-off fees...).
+  .post(
+    '/invoices',
+    requirePermission('admin.invoices.manage'),
+    validate(
+      'json',
+      z.object({
+        userId: z.number().int(),
+        currency: z.string().length(3).optional(),
+        dueAt: z.coerce.date().optional(),
+        items: z
+          .array(
+            z.object({
+              description: z.string().min(1).max(2000),
+              price: money,
+              quantity: z.number().int().min(1).max(1000).default(1),
+            }),
+          )
+          .min(1)
+          .max(50),
+        notify: z.boolean().default(true),
+      }),
+    ),
+    async (c) => {
+      const v = c.req.valid('json')
+      const user = await db.query.users.findFirst({ where: eq(schema.users.id, v.userId) })
+      if (!user) throw notFound('User')
+      const { getCurrency } = await import('../../../services/billing/pricing')
+      const { currency } = await getCurrency(v.currency)
+      const invoice = await createInvoice({
+        userId: user.id,
+        currency: currency.code,
+        dueAt: v.dueAt ?? new Date(Date.now() + 7 * 86_400_000),
+        items: v.items.map((i) => ({
+          description: i.description,
+          price: toCents(i.price),
+          quantity: i.quantity,
+          referenceType: 'custom' as const,
+        })),
+      })
+      if (v.notify) {
+        const { invoiceCreated } = await import('../../../services/notify')
+        await invoiceCreated(invoice.id)
+      }
+      await logActivity({
+        event: 'admin:invoice.create',
+        actorId: c.get('user')!.id,
+        ip: clientIp(c),
+        subject: { type: 'invoice', id: invoice.id },
+      })
+      return c.json({ data: { id: invoice.id } }, 201)
     },
   )
   .post('/invoices/:id/cancel', requirePermission('admin.invoices.manage'), async (c) => {
