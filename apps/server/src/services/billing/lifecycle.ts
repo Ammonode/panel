@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db, schema } from '../../db'
 import { emit, getProvisioner } from '../../extensions/registry'
 import { logActivity } from '../../lib/activity'
+import { serviceActivated, serviceSuspended } from '../notify'
 import { addPeriod } from './money'
 
 type Service = typeof schema.services.$inferSelect
@@ -99,6 +100,7 @@ export async function activateOrRenew(serviceId: number) {
       subject: { type: 'service', id: service.id },
     })
     await emit('service.created', { serviceId: service.id, userId: service.userId })
+    await serviceActivated(service.id)
     return
   }
   if (service.status === 'suspended') await unsuspendService(service.id)
@@ -117,6 +119,7 @@ export async function suspendService(serviceId: number, reason = 'overdue') {
     properties: { reason },
   })
   await emit('service.suspended', { serviceId: service.id, userId: service.userId, reason })
+  if (reason === 'overdue') await serviceSuspended(service.id)
 }
 
 export async function unsuspendService(serviceId: number) {

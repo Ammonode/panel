@@ -1,6 +1,7 @@
 import { db, schema } from '../../db'
 import { emit } from '../../extensions/registry'
 import { logActivity } from '../../lib/activity'
+import { invoiceCreated } from '../notify'
 import { createInvoice, markInvoicePaid, type NewInvoiceItem } from './invoices'
 import { fromCents } from './money'
 import { type CartItemInput, priceCart } from './pricing'
@@ -93,6 +94,7 @@ export async function checkout(
     subject: { type: 'invoice', id: invoice.id },
   })
   await emit('invoice.created', { invoiceId: invoice.id, userId })
+  if (cart.total > 0) await invoiceCreated(invoice.id)
   if (cart.total === 0)
     await markInvoicePaid(invoice.id, { gateway: null, transactionId: `free-${invoice.id}`, amount: '0.00' })
   return { invoiceId: invoice.id, total: fromCents(cart.total), free: cart.total === 0 }

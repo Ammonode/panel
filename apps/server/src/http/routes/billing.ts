@@ -39,6 +39,9 @@ export const billingRoutes = new Hono<AppEnv>()
     ),
     async (c) => {
       const body = c.req.valid('json')
+      if ((await getSetting('auth.require_email_verification')) && !c.get('user')!.emailVerifiedAt) {
+        throw new HttpError(403, 'Please confirm your email address before ordering.', 'email_unverified')
+      }
       const { currency } = await getCurrency(body.currency)
       const result = await checkout(c.get('user')!.id, {
         items: body.items,

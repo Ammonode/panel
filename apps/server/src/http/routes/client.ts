@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db, schema } from '../../db'
 import { requireAuth } from '../middleware/auth'
@@ -43,6 +43,13 @@ export const clientRoutes = new Hono<AppEnv>()
       tickets,
       invoices,
     })
+  })
+  .post('/notifications/read', async (c) => {
+    await db
+      .update(schema.notifications)
+      .set({ readAt: new Date() })
+      .where(and(eq(schema.notifications.userId, c.get('user')!.id), isNull(schema.notifications.readAt)))
+    return c.json({ ok: true })
   })
   .get('/notifications', async (c) => {
     const rows = await db.query.notifications.findMany({

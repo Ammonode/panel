@@ -7,6 +7,7 @@ import { getSettings } from '../lib/settings'
 import { authenticate } from './middleware/auth'
 import { accountRoutes } from './routes/account'
 import { adminBillingRoutes } from './routes/admin/billing'
+import { adminMailRoutes } from './routes/admin/mail'
 import { adminDatabaseHostRoutes, adminPanelRoutes } from './routes/admin/panel'
 import { adminServerEditRoutes } from './routes/admin/server-edit'
 import { adminServerRoutes } from './routes/admin/servers'
@@ -49,6 +50,7 @@ export const api = new Hono<AppEnv>()
   .route('/admin', adminServerEditRoutes)
   .route('/admin', adminUserRoutes)
   .route('/admin', adminBillingRoutes)
+  .route('/admin', adminMailRoutes)
 
 export type Api = typeof api
 

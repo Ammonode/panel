@@ -27,6 +27,14 @@ export const defaultSettings = {
   'affiliates.reward_percent': 10,
   'tickets.enabled': true,
   'servers.allow_client_create': false,
+  'mail.host': '' as string,
+  'mail.port': 587,
+  'mail.username': '' as string,
+  'mail.password': '' as string,
+  'mail.encryption': 'starttls' as 'starttls' | 'tls' | 'none',
+  'mail.from_address': '' as string,
+  'mail.from_name': '' as string,
+  'app.support_email': '' as string,
 }
 
 export type SettingKey = keyof typeof defaultSettings

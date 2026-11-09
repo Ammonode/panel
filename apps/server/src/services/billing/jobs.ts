@@ -1,6 +1,7 @@
-import { and, eq, inArray, isNotNull, lt, lte } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNotNull, isNull, lt, lte } from 'drizzle-orm'
 import { db, schema } from '../../db'
 import { getSetting } from '../../lib/settings'
+import { invoiceCreated, invoiceReminder } from '../notify'
 import { registerTask } from '../scheduler'
 import { cancelInvoice, createInvoice, invoiceSummary, payWithCredits } from './invoices'
 import { suspendService, terminateService } from './lifecycle'
@@ -62,7 +63,7 @@ export async function generateRenewalInvoices() {
       }
     }
     const until = service.expiresAt!.toISOString().slice(0, 10)
-    await createInvoice({
+    const invoice = await createInvoice({
       userId: service.userId,
       currency: service.currencyCode,
       dueAt: service.expiresAt!,
@@ -75,6 +76,27 @@ export async function generateRenewalInvoices() {
         },
       ],
     })
+    await invoiceCreated(invoice.id)
+  }
+}
+
+/** Sends one reminder per invoice a few days before it is due. */
+export async function sendReminders() {
+  const days = await getSetting('billing.reminder_days_before_due')
+  const due = await db.query.invoices.findMany({
+    where: and(
+      eq(schema.invoices.status, 'pending'),
+      isNull(schema.invoices.reminderSentAt),
+      lte(schema.invoices.dueAt, new Date(Date.now() + days * DAY)),
+      gt(schema.invoices.dueAt, new Date()),
+    ),
+  })
+  for (const invoice of due) {
+    await db
+      .update(schema.invoices)
+      .set({ reminderSentAt: new Date() })
+      .where(eq(schema.invoices.id, invoice.id))
+    await invoiceReminder(invoice.id)
   }
 }
 
@@ -162,6 +184,7 @@ export async function chargeCredits() {
 
 export function registerBillingJobs() {
   registerTask('billing:credits', '*/10 * * * *', chargeCredits)
+  registerTask('billing:reminders', '15 * * * *', sendReminders)
   registerTask('billing:renewals', '*/10 * * * *', generateRenewalInvoices)
   registerTask('billing:overdue', '5,35 * * * *', enforceOverdue)
   registerTask('billing:cancellations', '*/15 * * * *', processCancellations)

@@ -159,6 +159,8 @@ async function processPaidInvoice(invoiceId: number) {
   })
   const { emit } = await import('../../extensions/registry')
   await emit('invoice.paid', { invoiceId, userId: invoice.userId })
+  const { invoicePaid } = await import('../notify')
+  await invoicePaid(invoiceId)
 }
 
 export async function addCredits(userId: number, currency: string, cents: number, tx: Executor = db) {
