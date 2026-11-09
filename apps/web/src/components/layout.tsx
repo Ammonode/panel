@@ -28,7 +28,7 @@ import type { ComponentType } from 'react'
 import { useState } from 'react'
 import { type NavItem, Overridable, Slot, useRegistry } from '../extensions/registry'
 import { api, can, formatMoney, type User } from '../lib/api'
-import { useUser } from '../lib/auth'
+import { useMe, useUser } from '../lib/auth'
 import { useThemeMode } from '../lib/theme'
 import { Button, cn, Input, Toggle } from './ui'
 
@@ -341,6 +341,30 @@ function Topbar({ user, onMenu }: { user: User; onMenu: () => void }) {
   )
 }
 
+/** Shown while an administrator is signed in as a customer. */
+function ImpersonationBanner() {
+  const me = useMe()
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  if (!me.data?.impersonating) return null
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-warn/30 bg-warn-bg px-5 py-3 text-[13.5px] text-warn">
+      You are signed in as {me.data.user?.email}. Everything you do is logged.
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={async () => {
+          await api.post('/auth/impersonate/stop')
+          await qc.invalidateQueries()
+          navigate({ to: '/admin/users' })
+        }}
+      >
+        Return to my account
+      </Button>
+    </div>
+  )
+}
+
 export function AppLayout() {
   const user = useUser()
   const [collapsed, setCollapsed] = useState(true)
@@ -369,6 +393,7 @@ export function AppLayout() {
               props={{ user, onMenu: () => setCollapsed(false) }}
             />
             <main className="space-y-4 p-4 lg:p-5">
+              <ImpersonationBanner />
               <Outlet />
             </main>
           </div>

@@ -17,7 +17,10 @@ import {
 } from './routes/admin/billing'
 import { AdminEggsPage } from './routes/admin/eggs'
 import { AdminDatabaseHostsPage, AdminLocationsPage, AdminNodesPage } from './routes/admin/nodes'
+import { AdminOverviewPage } from './routes/admin/overview'
 import { AdminConfigOptionsPage, AdminProductEditPage, AdminProductsPage } from './routes/admin/products'
+import { AdminServerPage, AdminServersPage } from './routes/admin/servers'
+import { AdminRolesPage, AdminUserPage, AdminUsersPage } from './routes/admin/users'
 import { LoginPage, RegisterPage } from './routes/auth'
 import { CartPage } from './routes/billing/cart'
 import { CreditsPage, InvoicePage, InvoicesPage } from './routes/billing/invoices'
@@ -100,9 +103,12 @@ const routeTree = root.addChildren([
     placeholder('/account', 'Account'),
     placeholder('/account/security', 'Security'),
     placeholder('/help', 'Help'),
-    placeholder('/admin', 'Admin overview'),
-    placeholder('/admin/users', 'Users'),
-    placeholder('/admin/servers', 'Servers'),
+    page('/admin', AdminOverviewPage),
+    page('/admin/users', AdminUsersPage),
+    page('/admin/users/$id', AdminUserPage),
+    page('/admin/roles', AdminRolesPage),
+    page('/admin/servers', AdminServersPage),
+    page('/admin/servers/$id', AdminServerPage),
     page('/admin/nodes', AdminNodesPage),
     page('/admin/locations', AdminLocationsPage),
     page('/admin/database-hosts', AdminDatabaseHostsPage),
