@@ -7,12 +7,13 @@ import { getSettings } from '../lib/settings'
 import { authenticate } from './middleware/auth'
 import { accountRoutes } from './routes/account'
 import { adminBillingRoutes } from './routes/admin/billing'
-import { adminPanelRoutes } from './routes/admin/panel'
+import { adminDatabaseHostRoutes, adminPanelRoutes } from './routes/admin/panel'
 import { adminServerRoutes } from './routes/admin/servers'
 import { authRoutes } from './routes/auth'
 import { billingRoutes } from './routes/billing'
 import { clientRoutes } from './routes/client'
 import { clientServerRoutes } from './routes/client-server'
+import { clientServerExtraRoutes } from './routes/client-server-extra'
 import { remoteRoutes } from './routes/remote'
 import { storeRoutes } from './routes/store'
 import type { AppEnv } from './types'
@@ -36,9 +37,11 @@ export const api = new Hono<AppEnv>()
   .route('/account', accountRoutes)
   .route('/client', clientRoutes)
   .route('/client/servers', clientServerRoutes)
+  .route('/client/servers', clientServerExtraRoutes)
   .route('/client', billingRoutes)
   .route('/store', storeRoutes)
   .route('/admin', adminPanelRoutes)
+  .route('/admin', adminDatabaseHostRoutes)
   .route('/admin', adminServerRoutes)
   .route('/admin', adminBillingRoutes)
 

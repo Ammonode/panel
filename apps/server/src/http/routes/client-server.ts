@@ -11,20 +11,25 @@ import { clientIp, requireAuth } from '../middleware/auth'
 import type { AppEnv } from '../types'
 import { validate } from '../validate'
 
-type Env = AppEnv & { Variables: { access: ServerAccess } }
+export type Env = AppEnv & { Variables: { access: ServerAccess } }
 
-const daemonBase = (a: ServerAccess) => `/api/servers/${a.server.uuid}`
+export const daemonBase = (a: ServerAccess) => `/api/servers/${a.server.uuid}`
 const socketUrl = (a: ServerAccess) =>
   `${a.node.scheme === 'https' ? 'wss' : 'ws'}://${a.node.fqdn}:${a.node.daemonListen}/api/servers/${a.server.uuid}/ws`
 
 /** Normalises a client supplied path to `/a/b` form. */
-const cleanPath = (p: string | undefined) =>
+export const cleanPath = (p: string | undefined) =>
   `/${(p ?? '/')
     .split('/')
     .filter((s) => s && s !== '.' && s !== '..')
     .join('/')}`
 
-const log = (c: Context<Env>, a: ServerAccess, event: string, properties: Record<string, unknown> = {}) =>
+export const log = (
+  c: Context<Env>,
+  a: ServerAccess,
+  event: string,
+  properties: Record<string, unknown> = {},
+) =>
   logActivity({
     event,
     actorId: c.get('user')!.id,
