@@ -7,6 +7,7 @@ import { decrypt, encrypt, hashPassword, randomString, sha256, verifyPassword } 
 import { HttpError, notFound } from '../../lib/errors'
 import { getSetting } from '../../lib/settings'
 import { generateTotpSecret, totpUri, verifyTotp } from '../../lib/totp'
+import { sendVerification } from '../../services/auth-tokens'
 import { clientIp, newIdentifier, requireAuth } from '../middleware/auth'
 import { serializeUser } from '../serializers'
 import type { AppEnv } from '../types'
@@ -56,6 +57,7 @@ export const accountRoutes = new Hono<AppEnv>()
         ip: clientIp(c),
         properties: { old: user.email, new: email },
       })
+      await sendVerification(user.id)
       return c.json({ ok: true })
     },
   )
@@ -76,6 +78,13 @@ export const accountRoutes = new Hono<AppEnv>()
       return c.json({ ok: true })
     },
   )
+
+  .post('/verification', async (c) => {
+    const user = c.get('user')!
+    if (user.emailVerifiedAt) throw new HttpError(409, 'Your email is already verified', 'verified')
+    await sendVerification(user.id)
+    return c.json({ ok: true })
+  })
 
   // Two-factor authentication
   .get('/two-factor', async (c) => {

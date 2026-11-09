@@ -2,11 +2,13 @@ import { and, eq, isNull, or } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db, schema } from '../../db'
+import { emit } from '../../extensions/registry'
 import { logActivity } from '../../lib/activity'
 import { decrypt, hashPassword, sha256, verifyPassword } from '../../lib/crypto'
 import { HttpError } from '../../lib/errors'
 import { getSetting } from '../../lib/settings'
 import { verifyTotp } from '../../lib/totp'
+import { consume, sendPasswordReset, sendVerification } from '../../services/auth-tokens'
 import { clientIp, createSession, destroySession, newUuid } from '../middleware/auth'
 import { serializeUser } from '../serializers'
 import type { AppEnv } from '../types'
@@ -63,6 +65,8 @@ export const authRoutes = new Hono<AppEnv>()
         .returning()
       await createSession(c, user!)
       await logActivity({ event: 'auth:register', actorId: user!.id, ip: clientIp(c) })
+      await sendVerification(user!.id)
+      await emit('user.created', { userId: user!.id })
       return c.json({ user: serializeUser(user!) }, 201)
     },
   )
@@ -121,6 +125,48 @@ export const authRoutes = new Hono<AppEnv>()
       ip: clientIp(c),
       properties: { twoFactor: true },
     })
+    return c.json({ ok: true })
+  })
+
+  .post('/forgot-password', validate('json', z.object({ email: z.email() })), async (c) => {
+    const email = c.req.valid('json').email.toLowerCase()
+    throttle(`forgot:${clientIp(c)}`, 5, 15 * 60_000)
+    const user = await db.query.users.findFirst({ where: eq(schema.users.email, email) })
+    // Same answer whether or not the account exists, so emails cannot be enumerated.
+    if (user && !user.suspendedAt) {
+      await sendPasswordReset(user.id)
+      await logActivity({ event: 'auth:password.reset-requested', actorId: user.id, ip: clientIp(c) })
+    }
+    return c.json({ ok: true })
+  })
+  .post(
+    '/reset-password',
+    validate('json', z.object({ token: z.string().min(20).max(200), password: z.string().min(8).max(256) })),
+    async (c) => {
+      throttle(`reset:${clientIp(c)}`, 10, 15 * 60_000)
+      const { token, password } = c.req.valid('json')
+      const userId = await consume(token, 'password_reset')
+      if (!userId)
+        throw new HttpError(
+          422,
+          'This reset link is invalid or has expired. Request a new one.',
+          'invalid_token',
+        )
+      await db
+        .update(schema.users)
+        .set({ password: await hashPassword(password) })
+        .where(eq(schema.users.id, userId))
+      // Sign out every session: whoever had the old password loses access.
+      await db.delete(schema.sessions).where(eq(schema.sessions.userId, userId))
+      await logActivity({ event: 'auth:password.reset', actorId: userId, ip: clientIp(c) })
+      return c.json({ ok: true })
+    },
+  )
+  .post('/verify-email', validate('json', z.object({ token: z.string().min(20).max(200) })), async (c) => {
+    const userId = await consume(c.req.valid('json').token, 'verify_email')
+    if (!userId)
+      throw new HttpError(422, 'This verification link is invalid or has expired.', 'invalid_token')
+    await db.update(schema.users).set({ emailVerifiedAt: new Date() }).where(eq(schema.users.id, userId))
     return c.json({ ok: true })
   })
 
