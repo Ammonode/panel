@@ -336,5 +336,6 @@ export const clientServerRoutes = new Hono<Env>()
         notes: r.notes,
         isDefault: r.id === a.server.allocationId,
       })),
+      limit: a.server.allocationLimit,
     })
   })

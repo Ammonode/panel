@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db, schema } from '../../db'
@@ -562,6 +562,95 @@ export const clientServerExtraRoutes = new Hono<Env>()
     if (!row) throw notFound('Database')
     await deleteDatabase(row)
     await log(c, a, 'server:database.delete', { name: row.database })
+    return c.body(null, 204)
+  })
+
+  // ── Network ──────────────────────────────────────────────
+  .post('/:server/network/allocations', async (c) => {
+    const a = c.get('access')
+    a.require('allocation.create')
+    a.requireReady()
+    const owned = await db.query.allocations.findMany({ where: eq(schema.allocations.serverId, a.server.id) })
+    // allocationLimit counts ports beyond the primary one.
+    if (owned.length - 1 >= a.server.allocationLimit) {
+      throw new HttpError(
+        422,
+        a.server.allocationLimit
+          ? `This server can have at most ${a.server.allocationLimit} extra ports.`
+          : 'Extra ports are not available for this server.',
+        'limit',
+      )
+    }
+    const primary = owned.find((x) => x.id === a.server.allocationId)
+    const free = await db.query.allocations.findMany({
+      where: and(
+        eq(schema.allocations.nodeId, a.server.nodeId),
+        isNull(schema.allocations.serverId),
+        primary ? eq(schema.allocations.ip, primary.ip) : undefined,
+      ),
+      orderBy: asc(schema.allocations.port),
+      limit: 50,
+    })
+    if (!free.length)
+      throw new HttpError(422, 'No free ports are left on this node. Please contact support.', 'no_capacity')
+    const pick = free[Math.floor(Math.random() * free.length)]!
+    const claimed = await db
+      .update(schema.allocations)
+      .set({ serverId: a.server.id })
+      .where(and(eq(schema.allocations.id, pick.id), isNull(schema.allocations.serverId)))
+      .returning()
+    if (!claimed.length) throw new HttpError(409, 'That port was just taken, please try again.', 'conflict')
+    await daemonRequest(a.node, 'POST', `${daemonBase(a)}/sync`).catch(() => {})
+    await log(c, a, 'server:allocation.create', { port: pick.port })
+    return c.json({ data: { id: pick.id, port: pick.port } }, 201)
+  })
+  .patch(
+    '/:server/network/allocations/:id',
+    validate('json', z.object({ notes: z.string().max(256).nullable() })),
+    async (c) => {
+      const a = c.get('access')
+      a.require('allocation.update')
+      const res = await db
+        .update(schema.allocations)
+        .set({ notes: c.req.valid('json').notes })
+        .where(
+          and(
+            eq(schema.allocations.id, intId(c.req.param('id'))),
+            eq(schema.allocations.serverId, a.server.id),
+          ),
+        )
+        .returning()
+      if (!res.length) throw notFound('Allocation')
+      return c.json({ ok: true })
+    },
+  )
+  .post('/:server/network/allocations/:id/primary', async (c) => {
+    const a = c.get('access')
+    a.require('allocation.update')
+    const id = intId(c.req.param('id'))
+    const own = await db.query.allocations.findFirst({
+      where: and(eq(schema.allocations.id, id), eq(schema.allocations.serverId, a.server.id)),
+    })
+    if (!own) throw notFound('Allocation')
+    await db.update(schema.servers).set({ allocationId: id }).where(eq(schema.servers.id, a.server.id))
+    await daemonRequest(a.node, 'POST', `${daemonBase(a)}/sync`).catch(() => {})
+    await log(c, a, 'server:allocation.primary', { port: own.port })
+    return c.json({ ok: true })
+  })
+  .delete('/:server/network/allocations/:id', async (c) => {
+    const a = c.get('access')
+    a.require('allocation.delete')
+    const id = intId(c.req.param('id'))
+    if (id === a.server.allocationId)
+      throw new HttpError(422, 'You cannot remove the primary port', 'invalid')
+    const res = await db
+      .update(schema.allocations)
+      .set({ serverId: null, notes: null })
+      .where(and(eq(schema.allocations.id, id), eq(schema.allocations.serverId, a.server.id)))
+      .returning()
+    if (!res.length) throw notFound('Allocation')
+    await daemonRequest(a.node, 'POST', `${daemonBase(a)}/sync`).catch(() => {})
+    await log(c, a, 'server:allocation.delete', { port: res[0]!.port })
     return c.body(null, 204)
   })
 
