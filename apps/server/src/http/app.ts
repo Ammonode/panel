@@ -8,7 +8,9 @@ import { authenticate } from './middleware/auth'
 import { accountRoutes } from './routes/account'
 import { adminBillingRoutes } from './routes/admin/billing'
 import { adminDatabaseHostRoutes, adminPanelRoutes } from './routes/admin/panel'
+import { adminServerEditRoutes } from './routes/admin/server-edit'
 import { adminServerRoutes } from './routes/admin/servers'
+import { adminUserRoutes, impersonationRoutes } from './routes/admin/users'
 import { authRoutes } from './routes/auth'
 import { billingRoutes } from './routes/billing'
 import { clientRoutes } from './routes/client'
@@ -34,6 +36,7 @@ export const api = new Hono<AppEnv>()
     ),
   )
   .route('/auth', authRoutes)
+  .route('/auth', impersonationRoutes)
   .route('/account', accountRoutes)
   .route('/client', clientRoutes)
   .route('/client/servers', clientServerRoutes)
@@ -43,6 +46,8 @@ export const api = new Hono<AppEnv>()
   .route('/admin', adminPanelRoutes)
   .route('/admin', adminDatabaseHostRoutes)
   .route('/admin', adminServerRoutes)
+  .route('/admin', adminServerEditRoutes)
+  .route('/admin', adminUserRoutes)
   .route('/admin', adminBillingRoutes)
 
 export type Api = typeof api

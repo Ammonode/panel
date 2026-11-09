@@ -1,11 +1,11 @@
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, ilike, or } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db, schema } from '../../../db'
 import { logActivity } from '../../../lib/activity'
 import { notFound } from '../../../lib/errors'
 import { daemonRequest } from '../../../services/daemon'
-import { createServer } from '../../../services/servers'
+import { createServer, deleteServer, setServerSuspended } from '../../../services/servers'
 import { clientIp, requirePermission } from '../../middleware/auth'
 import type { AppEnv } from '../../types'
 import { validate } from '../../validate'
@@ -54,12 +54,33 @@ async function load(id: number) {
 
 export const adminServerRoutes = new Hono<AppEnv>()
   .get('/servers', requirePermission('admin.servers.view'), async (c) => {
-    const rows = await db.query.servers.findMany({ orderBy: desc(schema.servers.id), limit: 200 })
-    return c.json({ data: rows })
+    const q = c.req.query('q')?.trim()
+    const rows = await db
+      .select({
+        server: schema.servers,
+        owner: { id: schema.users.id, email: schema.users.email, username: schema.users.username },
+        node: schema.nodes.name,
+        egg: schema.eggs.name,
+      })
+      .from(schema.servers)
+      .innerJoin(schema.users, eq(schema.users.id, schema.servers.ownerId))
+      .innerJoin(schema.nodes, eq(schema.nodes.id, schema.servers.nodeId))
+      .innerJoin(schema.eggs, eq(schema.eggs.id, schema.servers.eggId))
+      .where(
+        q
+          ? or(
+              ilike(schema.servers.name, `%${q}%`),
+              ilike(schema.servers.uuidShort, `%${q}%`),
+              ilike(schema.users.email, `%${q}%`),
+            )
+          : undefined,
+      )
+      .orderBy(desc(schema.servers.id))
+      .limit(200)
+    return c.json({
+      data: rows.map((r) => ({ ...r.server, owner: r.owner, nodeName: r.node, eggName: r.egg })),
+    })
   })
-  .get('/servers/:id', requirePermission('admin.servers.view'), async (c) =>
-    c.json({ data: (await load(sid(c.req.param('id')))).server }),
-  )
   .post('/servers', requirePermission('admin.servers.manage'), validate('json', createBody), async (c) => {
     const server = await createServer(c.req.valid('json'))
     await logActivity({
@@ -81,29 +102,21 @@ export const adminServerRoutes = new Hono<AppEnv>()
     requirePermission('admin.servers.manage'),
     validate('json', z.object({ suspended: z.boolean() })),
     async (c) => {
-      const { server, node } = await load(sid(c.req.param('id')))
+      const { server } = await load(sid(c.req.param('id')))
       const suspended = c.req.valid('json').suspended
-      await db
-        .update(schema.servers)
-        .set({ status: suspended ? 'suspended' : null })
-        .where(eq(schema.servers.id, server.id))
-      await daemonRequest(node, 'POST', `/api/servers/${server.uuid}/sync`).catch(() => {})
+      await setServerSuspended(server.id, suspended)
+      await logActivity({
+        event: suspended ? 'admin:server.suspend' : 'admin:server.unsuspend',
+        actorId: c.get('user')!.id,
+        ip: clientIp(c),
+        subject: { type: 'server', id: server.id },
+      })
       return c.json({ ok: true })
     },
   )
   .delete('/servers/:id', requirePermission('admin.servers.manage'), async (c) => {
-    const { server, node } = await load(sid(c.req.param('id')))
     const force = c.req.query('force') === '1'
-    await daemonRequest(node, 'DELETE', `/api/servers/${server.uuid}`).catch((e) => {
-      if (!force) throw e
-    })
-    await db.transaction(async (tx) => {
-      await tx
-        .update(schema.allocations)
-        .set({ serverId: null, notes: null })
-        .where(eq(schema.allocations.serverId, server.id))
-      await tx.delete(schema.servers).where(eq(schema.servers.id, server.id))
-    })
+    const server = await deleteServer(sid(c.req.param('id')), force)
     await logActivity({
       event: 'admin:server.delete',
       actorId: c.get('user')!.id,

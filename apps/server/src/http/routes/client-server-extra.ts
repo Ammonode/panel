@@ -320,13 +320,11 @@ export const clientServerExtraRoutes = new Hono<Env>()
         where: and(eq(schema.subusers.serverId, a.server.id), eq(schema.subusers.userId, user.id)),
       })
       if (exists) throw new HttpError(409, 'This user already has access', 'conflict')
-      await db
-        .insert(schema.subusers)
-        .values({
-          serverId: a.server.id,
-          userId: user.id,
-          permissions: [...new Set([...permissions, 'websocket.connect'])],
-        })
+      await db.insert(schema.subusers).values({
+        serverId: a.server.id,
+        userId: user.id,
+        permissions: [...new Set([...permissions, 'websocket.connect'])],
+      })
       await log(c, a, 'server:subuser.create', { email, permissions })
       return c.json({ ok: true }, 201)
     },
