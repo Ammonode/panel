@@ -181,3 +181,133 @@ export function AdminNodesPage() {
     </div>
   )
 }
+
+type DatabaseHost = {
+  id: number
+  name: string
+  host: string
+  port: number
+  username: string
+  maxDatabases: number | null
+  databases: number
+}
+
+export function AdminDatabaseHostsPage() {
+  const qc = useQueryClient()
+  const list = useQuery({
+    queryKey: ['admin', 'database-hosts'],
+    queryFn: () => api.get<{ data: DatabaseHost[] }>('/admin/database-hosts'),
+  })
+  const [form, setForm] = useState({
+    name: '',
+    host: '127.0.0.1',
+    port: 3306,
+    username: '',
+    password: '',
+    maxDatabases: '',
+  })
+  const create = useMutation({
+    mutationFn: () =>
+      api.post('/admin/database-hosts', {
+        ...form,
+        maxDatabases: form.maxDatabases ? Number(form.maxDatabases) : null,
+      }),
+    onSuccess: () => {
+      setForm({ name: '', host: '127.0.0.1', port: 3306, username: '', password: '', maxDatabases: '' })
+      qc.invalidateQueries({ queryKey: ['admin', 'database-hosts'] })
+    },
+  })
+  const remove = useMutation({
+    mutationFn: (id: number) => api.delete(`/admin/database-hosts/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'database-hosts'] }),
+  })
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <Card>
+        <CardHeader
+          title="Database hosts"
+          subtitle="MySQL or MariaDB servers where customer databases are created."
+        />
+        {remove.error && <p className="px-5 pb-3 text-[13px] text-danger">{remove.error.message}</p>}
+        <div className="divide-y divide-line border-t border-line">
+          {list.data?.data.length === 0 && <Empty title="No database hosts yet" />}
+          {list.data?.data.map((h) => (
+            <div key={h.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+              <div>
+                <p className="font-medium">{h.name}</p>
+                <p className="text-xs text-muted">
+                  {h.username}@{h.host}:{h.port}
+                </p>
+              </div>
+              <span className="flex items-center gap-2">
+                <Pill>
+                  {h.databases}
+                  {h.maxDatabases ? ` / ${h.maxDatabases}` : ''} databases
+                </Pill>
+                <Button size="sm" variant="ghost" onClick={() => remove.mutate(h.id)}>
+                  Delete
+                </Button>
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card>
+        <CardHeader
+          title="New host"
+          subtitle="The user needs permission to create databases and users (GRANT OPTION)."
+        />
+        <form
+          className="space-y-4 px-5 pb-5"
+          onSubmit={(e) => {
+            e.preventDefault()
+            create.mutate()
+          }}
+        >
+          <Field label="Name">
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </Field>
+          <div className="grid grid-cols-[1fr_100px] gap-3">
+            <Field label="Host">
+              <Input value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} />
+            </Field>
+            <Field label="Port">
+              <Input
+                type="number"
+                value={form.port}
+                onChange={(e) => setForm({ ...form, port: Number(e.target.value) })}
+              />
+            </Field>
+          </div>
+          <Field label="Username">
+            <Input
+              value={form.username}
+              autoComplete="off"
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+            />
+          </Field>
+          <Field label="Password">
+            <Input
+              type="password"
+              value={form.password}
+              autoComplete="new-password"
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+            />
+          </Field>
+          <Field label="Max databases" hint="Empty = unlimited">
+            <Input
+              type="number"
+              min={1}
+              value={form.maxDatabases}
+              onChange={(e) => setForm({ ...form, maxDatabases: e.target.value })}
+            />
+          </Field>
+          {create.error && <p className="text-[13px] text-danger">{create.error.message}</p>}
+          <Button type="submit" loading={create.isPending}>
+            Test and save
+          </Button>
+        </form>
+      </Card>
+    </div>
+  )
+}

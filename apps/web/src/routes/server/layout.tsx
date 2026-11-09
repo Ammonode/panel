@@ -72,7 +72,12 @@ const tabs = [
   { to: '', label: 'Console', perm: 'websocket.connect' },
   { to: '/files', label: 'Files', perm: 'file.read' },
   { to: '/startup', label: 'Startup', perm: 'startup.read' },
+  { to: '/schedules', label: 'Schedules', perm: 'schedule.read' },
+  { to: '/users', label: 'Users', perm: 'user.read' },
+  { to: '/databases', label: 'Databases', perm: 'database.read' },
+  { to: '/backups', label: 'Backups', perm: 'backup.read' },
   { to: '/network', label: 'Network', perm: 'allocation.read' },
+  { to: '/activity', label: 'Activity', perm: 'activity.read' },
   { to: '/settings', label: 'Settings', perm: null },
 ]
 

@@ -5,6 +5,7 @@ import {
   ChevronDown,
   CircleHelp,
   CreditCard,
+  Database,
   Egg,
   Gamepad2,
   LayoutGrid,
@@ -81,6 +82,14 @@ const adminNav: NavItem[] = [
     icon: MapPin,
     area: 'admin',
     permission: 'admin.locations.manage',
+  },
+  {
+    id: 'admin-databases',
+    label: 'Databases',
+    to: '/admin/database-hosts',
+    icon: Database,
+    area: 'admin',
+    permission: 'admin.databases.manage',
   },
   {
     id: 'admin-eggs',

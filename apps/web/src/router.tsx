@@ -16,7 +16,7 @@ import {
   AdminSettingsPage,
 } from './routes/admin/billing'
 import { AdminEggsPage } from './routes/admin/eggs'
-import { AdminLocationsPage, AdminNodesPage } from './routes/admin/nodes'
+import { AdminDatabaseHostsPage, AdminLocationsPage, AdminNodesPage } from './routes/admin/nodes'
 import { AdminConfigOptionsPage, AdminProductEditPage, AdminProductsPage } from './routes/admin/products'
 import { LoginPage, RegisterPage } from './routes/auth'
 import { CartPage } from './routes/billing/cart'
@@ -27,6 +27,7 @@ import { DashboardPage } from './routes/dashboard'
 import { ConsolePage } from './routes/server/console'
 import { FilesPage } from './routes/server/files'
 import { ServerLayout } from './routes/server/layout'
+import { ActivityPage, BackupsPage, DatabasesPage, SchedulesPage, UsersPage } from './routes/server/manage'
 import { NetworkPage, SettingsPage } from './routes/server/settings'
 import { StartupPage } from './routes/server/startup'
 import { PlaceholderPage, ServersPage } from './routes/servers'
@@ -78,6 +79,11 @@ const routeTree = root.addChildren([
       serverPage('/', ConsolePage),
       serverPage('/files', FilesPage),
       serverPage('/startup', StartupPage),
+      serverPage('/schedules', SchedulesPage),
+      serverPage('/users', UsersPage),
+      serverPage('/databases', DatabasesPage),
+      serverPage('/backups', BackupsPage),
+      serverPage('/activity', ActivityPage),
       serverPage('/network', NetworkPage),
       serverPage('/settings', SettingsPage),
     ]),
@@ -99,6 +105,7 @@ const routeTree = root.addChildren([
     placeholder('/admin/servers', 'Servers'),
     page('/admin/nodes', AdminNodesPage),
     page('/admin/locations', AdminLocationsPage),
+    page('/admin/database-hosts', AdminDatabaseHostsPage),
     page('/admin/eggs', AdminEggsPage),
     page('/admin/products', AdminProductsPage),
     page('/admin/products/$id', AdminProductEditPage),
