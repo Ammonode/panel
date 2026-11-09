@@ -157,7 +157,8 @@ function Sidebar({
     .filter((n) => !n.permission || can(user, n.permission))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const isActive = (to: string) =>
-    to === '/' || to === '/admin' ? path === to : path === to || path.startsWith(`${to}/`)
+    (to === '/servers' && path.startsWith('/server/')) ||
+    (to === '/' || to === '/admin' ? path === to : path === to || path.startsWith(`${to}/`))
 
   return (
     <aside

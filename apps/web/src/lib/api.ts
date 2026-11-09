@@ -28,7 +28,28 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T
 }
 
+/** Sends/receives plain text (file contents). */
+async function text(method: string, path: string, body?: string): Promise<string> {
+  const res = await fetch(`/api${path}`, {
+    method,
+    credentials: 'same-origin',
+    headers: body !== undefined ? { 'content-type': 'text/plain' } : undefined,
+    body,
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new ApiError(
+      res.status,
+      data?.error?.message ?? res.statusText,
+      data?.error?.code ?? 'error',
+      data?.error?.details,
+    )
+  }
+  return res.text()
+}
+
 export const api = {
+  text,
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body ?? {}),

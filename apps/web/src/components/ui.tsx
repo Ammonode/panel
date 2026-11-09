@@ -235,3 +235,79 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
     </div>
   )
 }
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+}: {
+  open: boolean
+  onClose: () => void
+  title: string
+  children: ReactNode
+  footer?: ReactNode
+}) {
+  if (!open) return null
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal
+      aria-label={title}
+    >
+      <button
+        type="button"
+        aria-label="Close"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-md rounded-card border border-line bg-surface p-5 shadow-xl">
+        <h3 className="text-[17px] font-medium">{title}</h3>
+        <div className="mt-2 text-[13.5px] text-muted">{children}</div>
+        {footer && <div className="mt-5 flex justify-end gap-2">{footer}</div>}
+      </div>
+    </div>
+  )
+}
+
+/** Small area chart for live stats. */
+export function Sparkline({
+  values,
+  max,
+  className,
+}: {
+  values: number[]
+  max?: number
+  className?: string
+}) {
+  const w = 120
+  const h = 36
+  const top = Math.max(max ?? 0, ...values, 1)
+  const pts = values.map(
+    (v, i) => [values.length < 2 ? w : (i / (values.length - 1)) * w, h - (v / top) * (h - 2) - 1] as const,
+  )
+  const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      className={cn('h-9 w-full', className)}
+      aria-hidden
+    >
+      {pts.length > 1 && (
+        <>
+          <path d={`${line} L${w},${h} L0,${h} Z`} fill="currentColor" opacity="0.12" />
+          <path
+            d={line}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            vectorEffect="non-scaling-stroke"
+          />
+        </>
+      )}
+    </svg>
+  )
+}

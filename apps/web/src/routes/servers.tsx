@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Gamepad2 } from 'lucide-react'
 import { Card, CardHeader, Empty, IconTile, Pill } from '../components/ui'
 import { api } from '../lib/api'
@@ -23,9 +24,11 @@ export function ServersPage() {
       <CardHeader title="Your servers" />
       <div className="grid gap-3 px-5 pb-5 md:grid-cols-2 xl:grid-cols-3">
         {data?.data.map((s) => (
-          <div
+          <Link
             key={s.id}
-            className="flex items-center gap-4 rounded-[12px] border border-line bg-surface-2 p-4"
+            to="/server/$id"
+            params={{ id: s.uuidShort }}
+            className="flex items-center gap-4 rounded-[12px] border border-line bg-surface-2 p-4 hover:border-subtle"
           >
             <IconTile>
               <Gamepad2 className="size-5" />
@@ -43,7 +46,7 @@ export function ServersPage() {
                 Ready
               </Pill>
             )}
-          </div>
+          </Link>
         ))}
       </div>
       {data?.data.length === 0 && (

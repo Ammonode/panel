@@ -12,6 +12,11 @@ import { AdminEggsPage } from './routes/admin/eggs'
 import { AdminLocationsPage, AdminNodesPage } from './routes/admin/nodes'
 import { LoginPage, RegisterPage } from './routes/auth'
 import { DashboardPage } from './routes/dashboard'
+import { ConsolePage } from './routes/server/console'
+import { FilesPage } from './routes/server/files'
+import { ServerLayout } from './routes/server/layout'
+import { NetworkPage, SettingsPage } from './routes/server/settings'
+import { StartupPage } from './routes/server/startup'
 import { PlaceholderPage, ServersPage } from './routes/servers'
 
 const root = createRootRouteWithContext<{ queryClient: QueryClient }>()({ component: Outlet })
@@ -41,6 +46,14 @@ const page = (path: string, component: () => React.ReactNode) =>
   createRoute({ getParentRoute: () => authed, path, component })
 const placeholder = (path: string, title: string) => page(path, () => <PlaceholderPage title={title} />)
 
+const serverRoute = createRoute({
+  getParentRoute: () => authed,
+  path: '/server/$id',
+  component: ServerLayout,
+})
+const serverPage = (path: string, component: () => React.ReactNode) =>
+  createRoute({ getParentRoute: () => serverRoute, path, component })
+
 const routeTree = root.addChildren([
   guest.addChildren([
     createRoute({ getParentRoute: () => guest, path: '/login', component: LoginPage }),
@@ -49,6 +62,13 @@ const routeTree = root.addChildren([
   authed.addChildren([
     page('/', DashboardPage),
     page('/servers', ServersPage),
+    serverRoute.addChildren([
+      serverPage('/', ConsolePage),
+      serverPage('/files', FilesPage),
+      serverPage('/startup', StartupPage),
+      serverPage('/network', NetworkPage),
+      serverPage('/settings', SettingsPage),
+    ]),
     placeholder('/services', 'Services'),
     placeholder('/invoices', 'Billing'),
     placeholder('/credits', 'Top up credit'),
